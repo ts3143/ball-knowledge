@@ -31,6 +31,8 @@ prior_weight_picks = 50
 [quality_gates]
 min_answers = 15
 max_answers = 300
+# The generation summary also shows how many prompts would pass at each of these minimums.
+report_min_answers_alternatives = [10, 12, 15]
 completeness_expected_answers = 20
 
 # ---------------------------------------------------------------------------
