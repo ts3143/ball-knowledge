@@ -33,6 +33,16 @@ P_NICKNAME = "P1449"
 Q_HUMAN = "Q5"
 Q_FEMALE = "Q6581072"
 Q_SQUAD = "Q103229495"        # "men's association football team" (season squad items)
+P_POSITION_HELD = "P39"
+# A coach statement (P6087 / P286) counts as a head-coach spell only if it has no P39 qualifier or
+# every P39 value is here. Labels checked against the Wikidata API on 2026-11-11. Other values seen
+# in the data (assistant coach Q11703711, youth coach Q114221078, scout Q1339677, goalkeeper coach
+# Q2445218) are non-head roles.
+Q_CARETAKER = "Q1050607"
+HEAD_COACH_ROLES = {
+    Q_CARETAKER,              # caretaker manager (de: Interimstrainer)
+    "Q379533",                # player-coach (de: Spielertrainer), also in charge of the team
+}
 
 
 @dataclass(frozen=True)
@@ -222,6 +232,10 @@ def item_values(entity: dict, pid: str) -> list[str]:
     return [q for s in statements(entity, pid) if (q := snak_item(s["mainsnak"]))]
 
 
+def position_held(statement: dict) -> list[str]:
+    return [q for snak in statement.get("qualifiers", {}).get(P_POSITION_HELD, []) if (q := snak_item(snak))]
+
+
 def best_statement(entity: dict, pid: str) -> dict | None:
     stmts = statements(entity, pid)
     preferred = [s for s in stmts if s.get("rank") == "preferred"]
@@ -400,6 +414,12 @@ def people_facts(persons: dict[str, dict], clubs: dict[str, dict], squad_to_club
 
     def consider(person_id: str, statement: dict, predicate: str, target: str) -> None:
         club = target_to_club[target]
+        roles = position_held(statement) if predicate != "played_for" else []
+        if any(q not in HEAD_COACH_ROLES for q in roles):
+            # Rejected before anything else: no fact, no scope, no merging, no infobox reconciliation.
+            out.counts[f"{predicate}:non_head_role"] += 1
+            out.stats["coach_statements_non_head_role"].append((person_id, club, statement["id"], roles))
+            return
         start = qualifier_time(statement, P_START)
         end = qualifier_time(statement, P_END)
         if bad := unreadable_dates(statement, (P_START, P_END)):
@@ -416,7 +436,10 @@ def people_facts(persons: dict[str, dict], clubs: dict[str, dict], squad_to_club
             via = target if target != club else None
             if via:
                 out.counts[f"{predicate}:via_squad_item"] += 1
-            candidate[person_id].append(stint_fact(statement, person_id, predicate, club, quality, via))
+            fact = stint_fact(statement, person_id, predicate, club, quality, via)
+            if Q_CARETAKER in roles:
+                fact.qualifiers["role"] = "interim"
+            candidate[person_id].append(fact)
 
     # Player stints and P6087 coach links live on the person item.
     for pid in birth_years:

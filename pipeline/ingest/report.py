@@ -355,6 +355,12 @@ def _coach_sources(cur, run: dict, ing: dict, names: dict[str, str]) -> None:
         if rows:
             print(f"    e.g. {label}: " + "; ".join(f"{name(p)} at {name(cl)} [{' / '.join(r)}]" for p, cl, r in rows[:3]))
 
+    non_head = stats.get("coach_statements_non_head_role", [])
+    print(f"  Wikidata coach statements rejected, P39 qualifier says not head coach (P6087 "
+          f"{c.get('coached_p6087:non_head_role', 0)}, P286 {c.get('coached_p286:non_head_role', 0)}): {len(non_head)}")
+    for p, cl, _, roles in non_head[:8]:
+        print(f"    {name(p)} at {name(cl)} [{' / '.join(roles)}]")
+
     dis = stats.get("coach_dewiki_disagreements", [])
     print(f"  Same spell, Wikidata and infobox years differ (Wikidata kept): {len(dis)}")
     for p, cl, wd, dw, _ in dis[:8]:

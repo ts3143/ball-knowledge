@@ -348,3 +348,72 @@ def test_woman_found_only_in_infobox_is_excluded():
     ex, in_scope = run_people([p], stations=[station("Q1", 2015, 2016)])
     assert in_scope == set()
     assert ex.counts["women_on_mens_club_items"] == 1
+
+
+# --- P39 "position held" on coach statements ----------------------------------
+
+NON_HEAD, CARETAKER = "Q990000010", "Q1050607"
+
+
+def p39(qid):
+    return {"P39": [item(qid)]}
+
+
+def test_p6087_with_non_head_role_gives_no_fact_and_drops_the_person():
+    coach = person("Q1", born=1970, claims={"P6087": [stmt(item(CLUB), 2010, 2012, **p39(NON_HEAD))]})
+    ex, in_scope = run_people([coach])
+    assert not coached(ex)
+    assert "Q1" not in in_scope
+    assert not [f for f in ex.facts.values() if f.subject == "Q1"]
+    assert ex.counts["coached_p6087:non_head_role"] == 1
+    ((who, where, _, roles),) = ex.stats["coach_statements_non_head_role"]
+    assert (who, where, roles) == ("Q1", CLUB, [NON_HEAD])
+
+
+def test_p286_with_non_head_role_gives_no_fact_and_drops_the_person():
+    clubs = {CLUB: club(CLUB, [stmt(item("Q1"), 2010, 2012, **p39(NON_HEAD))]), SQUAD: club(SQUAD)}
+    ex, in_scope = run_people([person("Q1", born=1970)], clubs)
+    assert not coached(ex)
+    assert "Q1" not in in_scope
+    assert ex.counts["coached_p286:non_head_role"] == 1
+
+
+def test_caretaker_statement_is_kept_and_marked_interim():
+    coach = person("Q1", born=1970, claims={"P6087": [stmt(item(CLUB), 2010, 2012, **p39(CARETAKER))]})
+    ex, in_scope = run_people([coach])
+    (fact,) = coached(ex)
+    assert fact.qualifiers["role"] == "interim"
+    assert "Q1" in in_scope
+    assert not ex.stats["coach_statements_non_head_role"]
+
+
+def test_coach_statement_without_p39_is_kept():
+    clubs = {CLUB: club(CLUB, [stmt(item("Q1"), 2010, 2012)]), SQUAD: club(SQUAD)}
+    ex, _ = run_people([person("Q1", born=1970)], clubs)
+    (fact,) = coached(ex)
+    assert "role" not in fact.qualifiers
+
+
+def test_mixed_p39_values_are_rejected_unless_all_are_head_roles():
+    coach = person("Q1", born=1970, claims={"P6087": [stmt(item(CLUB), 2010, 2012, P39=[item(CARETAKER), item(NON_HEAD)])]})
+    ex, _ = run_people([coach])
+    assert not coached(ex)
+
+
+def test_rejected_p6087_does_not_collapse_into_or_confirm_anything():
+    coach = person("Q1", born=1970, claims={"P6087": [stmt(item(CLUB), 2010, 2012, **p39(NON_HEAD))]})
+    clubs = {CLUB: club(CLUB, [stmt(item("Q1"), 2010, 2012)]), SQUAD: club(SQUAD)}
+    ex, _ = run_people([coach], clubs)
+    (fact,) = coached(ex)
+    assert fact.qualifiers["source_property"] == "P286"
+    assert "also_p6087" not in fact.qualifiers
+    assert not ex.counts["coach_entries_collapsed"]
+
+
+def test_rejected_statement_does_not_confirm_or_absorb_an_infobox_row():
+    coach = person("Q1", born=1970, claims={"P6087": [stmt(item(CLUB), 2010, 2012, **p39(NON_HEAD))]})
+    ex, _ = run_people([coach], stations=[station("Q1", 2010, 2012)])
+    (fact,) = coached(ex)
+    assert fact.source == "dewiki"
+    assert "wikidata_links" not in fact.qualifiers
+    assert "dewiki" not in fact.qualifiers
