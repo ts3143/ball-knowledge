@@ -1,0 +1,12 @@
+# Seasons of the competition from $start_year on, with participating teams.
+# Teams listed as squad items ("men's association football team") carry their club in P831.
+SELECT ?season ?start ?end ?team ?parent WHERE {
+  ?season wdt:P3450 wd:$competition ;
+          wdt:P580 ?start .
+  FILTER(YEAR(?start) >= $start_year)
+  OPTIONAL { ?season wdt:P582 ?end . }
+  OPTIONAL {
+    ?season wdt:P1923 ?team .
+    OPTIONAL { ?team wdt:P31 wd:$squad_class ; wdt:P831 ?parent . }
+  }
+}

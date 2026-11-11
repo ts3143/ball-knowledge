@@ -1,0 +1,16 @@
+# Humans linked to one club (or its squad items) as player (P54) whose stint could fall in
+# scope. Deliberately a superset of the scope rules in extract.py, which are applied to full
+# statement data afterwards.
+SELECT DISTINCT ?person WHERE {
+  VALUES ?target { $targets }
+  ?person p:P54 ?st .
+  ?st ps:P54 ?target .
+  ?person wdt:P31 wd:Q5 .
+  OPTIONAL { ?st pq:P580 ?s . }
+  OPTIONAL { ?st pq:P582 ?e . }
+  OPTIONAL { ?person wdt:P569 ?dob . }
+  BIND(COALESCE(IF(isLiteral(?e), YEAR(?e), -1), -1) AS ?ey)
+  BIND(COALESCE(IF(isLiteral(?s), YEAR(?s), -1), -1) AS ?sy)
+  BIND(COALESCE(IF(isLiteral(?dob), YEAR(?dob), -1), -1) AS ?by)
+  FILTER(?ey >= $start_year || (?ey < 0 && (?sy >= $start_year || ?by >= $min_birth_year)))
+}

@@ -1,0 +1,10 @@
+# Season winners (P1346), non-deprecated, with any criterion qualifier.
+SELECT ?season ?winner ?criterion WHERE {
+  ?season wdt:P3450 wd:$competition ;
+          wdt:P580 ?start .
+  FILTER(YEAR(?start) >= $start_year)
+  ?season p:P1346 ?ws .
+  ?ws ps:P1346 ?winner .
+  FILTER NOT EXISTS { ?ws wikibase:rank wikibase:DeprecatedRank . }
+  OPTIONAL { ?ws pq:P1013 ?criterion . }
+}

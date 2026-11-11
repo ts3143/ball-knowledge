@@ -1,0 +1,9 @@
+# Humans linked to one club (or its squad items) as coach: P286 on the club, P6087 on the
+# person, any rank (wdt: would hide past coaches when the current one is preferred). Not
+# filtered by date: undated links may be dated by the German Wikipedia infobox
+# (dewiki.py), and extract.py applies the scope rules afterwards.
+SELECT DISTINCT ?person WHERE {
+  VALUES ?target { $targets }
+  { ?target p:P286/ps:P286 ?person . } UNION { ?person p:P6087/ps:P6087 ?target . }
+  ?person wdt:P31 wd:Q5 .
+}

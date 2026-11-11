@@ -1,0 +1,23 @@
+{
+  "_comment": "Shared normalization cases. Step 5's TypeScript matcher must produce identical output. Synthetic strings, not real people.",
+  "cases": [
+    {"input": "Müller", "norm": "muller", "translit": "mueller"},
+    {"input": "MÜLLER", "norm": "muller", "translit": "mueller"},
+    {"input": "Mueller", "norm": "mueller", "translit": null},
+    {"input": "Strauß", "norm": "strauss", "translit": null},
+    {"input": "Größer", "norm": "grosser", "translit": "groesser"},
+    {"input": "Ærøskøbing", "norm": "aeroskobing", "translit": null},
+    {"input": "Łódź", "norm": "lodz", "translit": null},
+    {"input": "Đorđe", "norm": "dorde", "translit": null},
+    {"input": "Yıldız", "norm": "yildiz", "translit": null},
+    {"input": "İnce", "norm": "ince", "translit": null},
+    {"input": "Ñúñez-Çelik", "norm": "nunez celik", "translit": null},
+    {"input": "N'Tester", "norm": "ntester", "translit": null},
+    {"input": "D’Exemple", "norm": "dexemple", "translit": null},
+    {"input": "1. FC Testhausen 05", "norm": "1 fc testhausen 05", "translit": null},
+    {"input": "  Jean-Marie   Exemple ", "norm": "jean marie exemple", "translit": null},
+    {"input": "Ü. Testmann Jr.", "norm": "u testmann jr", "translit": "ue testmann jr"},
+    {"input": "Müller", "norm": "muller", "translit": "mueller"},
+    {"input": "...", "norm": "", "translit": null}
+  ]
+}

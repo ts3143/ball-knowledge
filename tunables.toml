@@ -1,0 +1,108 @@
+# Ball Knowledge — every tunable lives here.
+# Values marked "starting value" come from CLAUDE.md / docs/DESIGN.md and get tuned in simulation (step 4).
+# Lines marked TBD are deliberately unset: the docs leave them open, so they're decided in the step that needs them.
+
+# ---------------------------------------------------------------------------
+# The dive
+# ---------------------------------------------------------------------------
+[dive]
+prompts_per_dive = 7
+seconds_per_prompt = 25
+# grace_seconds = TBD (step 5) — "small grace" after the 25 s timer
+# reset_time = TBD — assumed midnight US Eastern, open question for T
+
+# ---------------------------------------------------------------------------
+# Rarity tiers (starting values). Cumulative share of predicted picks, most obvious first.
+# ---------------------------------------------------------------------------
+[tiers]
+names = ["Bandwagon", "Casual", "Real One", "Deep Cut", "You Know Ball"]
+cumulative_share = [0.50, 0.75, 0.90, 0.98, 1.00]
+points = [10, 25, 50, 75, 100]
+hipster_pick_points = 15
+
+[rarity]
+# Posterior pick share blends predicted and observed; the prediction is worth this many picks.
+prior_weight_picks = 50
+# hipster_auto_flag_ratio = TBD (step 3) — observed share ≫ predicted
+
+# ---------------------------------------------------------------------------
+# Prompt quality gates (step 2)
+# ---------------------------------------------------------------------------
+[quality_gates]
+min_answers = 15
+max_answers = 300
+completeness_expected_answers = 20
+
+# ---------------------------------------------------------------------------
+# Rating — Glicko-2 (starting values)
+# ---------------------------------------------------------------------------
+[glicko]
+initial_rating = 1500
+initial_rd = 350
+initial_volatility = 0.06
+# tau = TBD (step 4)
+uncertain_rd_threshold = 110
+club_rating_min_prompts = 20
+prompt_lock_answers = 200
+# child_scope_initial_rd = TBD (step 4) — "high RD" for a new club/competition scope
+# irt_refit_min_rated_answers = 1000 (later, not first build)
+
+# ---------------------------------------------------------------------------
+# LLM
+# ---------------------------------------------------------------------------
+[llm]
+prompt_model = "claude-sonnet-5-5"
+answer_check_model = "claude-haiku-5-5"
+monthly_budget_usd = 20
+
+# ---------------------------------------------------------------------------
+# Ingest (step 1)
+# ---------------------------------------------------------------------------
+[ingest]
+# Wikidata item for the competition being ingested.
+competition_qid = "Q82595"
+# Seasons starting in this year or later define the club set; stints must reach this year.
+start_year = 2000
+# Stints whose dates don't prove start_year onward (no dates, or an early start with no end)
+# are kept, flagged, only for people born in this year or later.
+undated_min_birth_year = 1965
+# Label/alias languages, in canonical-name preference order.
+label_languages = ["en", "de", "mul"]
+
+[ingest.wikidata]
+sparql_endpoint = "https://query.wikidata.org/sparql"
+api_endpoint = "https://www.wikidata.org/w/api.php"
+wbgetentities_batch = 50
+# Pause between SPARQL queries; they run one at a time.
+sparql_pause_seconds = 1.0
+api_pause_seconds = 0.2
+timeout_seconds = 90
+max_retries = 5
+
+[ingest.dewiki]
+# German Wikipedia infobox coaching tables: second source for coach spells only.
+# Exception to "Wikidata + pageviews only", approved by T on 2026-11-11.
+api_endpoint = "https://de.wikipedia.org/w/api.php"
+# Each club's dewiki article title fills {club}; the category's articles are candidate coaches.
+coach_category = "Kategorie:Fußballtrainer ({club})"
+titles_per_request = 50
+pause_seconds = 0.2
+
+[ingest.pageviews]
+wikis = ["de", "en"]
+# Earliest month the Wikimedia per-article API serves.
+start_month = "2015-07"
+agent = "user"
+# Wikimedia throttles this API to roughly 5 requests/s per client (measured 2026-11-11: HTTP 429 above that).
+max_requests_per_second = 5
+concurrency = 4
+
+[ingest.coverage]
+# Club-seasons with fewer dated players than this are flagged as thin.
+min_squad_size = 20
+teams_per_season = 18
+# Age at stint start outside this range is flagged as implausible.
+min_plausible_age = 15
+max_plausible_age = 45
+sample_players = 10
+sample_seed = 42
