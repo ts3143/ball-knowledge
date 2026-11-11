@@ -15,6 +15,7 @@ package = false
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = ["db: needs the local Supabase database"]
 
 [tool.ruff]
 line-length = 110
