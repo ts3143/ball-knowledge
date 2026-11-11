@@ -2,7 +2,7 @@
 with at_a as (
   select s.person_id, array_agg(s.fact_id order by s.fact_id) as fact_ids,
          bool_and(cardinality(s.weak_reasons) > 0) as weak
-  from stints s
+  from stints(%(current_from_year)s) s
   join entities c on c.id = s.club_id and c.wikidata_id = %(club_a)s
   where s.predicate = 'played_for'
   group by s.person_id
@@ -10,7 +10,7 @@ with at_a as (
 at_b as (
   select s.person_id, array_agg(s.fact_id order by s.fact_id) as fact_ids,
          bool_and(cardinality(s.weak_reasons) > 0) as weak
-  from stints s
+  from stints(%(current_from_year)s) s
   join entities c on c.id = s.club_id and c.wikidata_id = %(club_b)s
   where s.predicate = 'played_for'
   group by s.person_id

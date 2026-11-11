@@ -12,6 +12,7 @@ from prompts.generate import generate
 pytestmark = pytest.mark.db
 
 TUNABLES = {
+    "prompts": {"open_ended_current_seasons": 2},
     "ingest": {"start_year": 2000, "coverage": {"teams_per_season": 3}},
     "quality_gates": {"min_answers": 1, "max_answers": 300, "report_min_answers_alternatives": [1, 2]},
 }
@@ -196,6 +197,118 @@ def test_club_coaches(world):
     assert answers[undated["id"]]["flags"] == ["weak_stint"]
     assert prompt["text"] == "Name a head coach of Test Club A since 2000 (interim coaches count)"
     assert prompt["answer_type"] == "person"
+
+
+def test_current_from_year_comes_from_the_latest_season_and_the_tunable(world):
+    w = world
+    current, recent, older = w.person("Current"), w.person("Recent"), w.person("Older")
+    for coach, start in ((current, 2012), (recent, 2011), (older, 2008)):
+        w.stint(coach, "A", predicate="coached", date_quality="open_ended", start_year=start, end_year=None,
+                end_precision=None)
+    w.run("club_coaches")
+    prompt = w.only("club_coaches", club=w.clubs["A"]["wikidata_id"])
+    # Latest placeholder season is 2013; two seasons count as current, so from 2012.
+    assert "stints(2012)" in prompt["answer_query"]
+    answers = w.answers(prompt["id"])
+    assert answers[current["id"]]["flags"] == []
+    assert answers[recent["id"]]["flags"] == ["weak_stint"]
+    assert answers[older["id"]]["flags"] == ["weak_stint"]
+    w.run("club_coaches", prompts={"open_ended_current_seasons": 3})
+    prompt = w.only("club_coaches", club=w.clubs["A"]["wikidata_id"])
+    assert "stints(2011)" in prompt["answer_query"]
+    assert w.answers(prompt["id"])[recent["id"]]["flags"] == []
+    assert w.answers(prompt["id"])[older["id"]]["flags"] == ["weak_stint"]
+
+
+def test_bundesliga_nationality_skips_undated_and_flags_edge_and_weak(world):
+    w = world
+    strong, edge_only, undated_too, weak, only_undated, other = (
+        w.person(n) for n in ("Strong", "EdgeOnly", "UndatedToo", "Weak", "OnlyUndated", "Other"))
+    other_country, undated_country = w.entity("country", "Other Country"), w.entity("country", "Undated Country")
+    nat = {p["id"]: w.fact(p["id"], "nationality", w.country["id"])
+           for p in (strong, edge_only, undated_too, weak, only_undated)}
+    w.fact(other["id"], "nationality", other_country["id"])
+    w.stint(strong, "A")  # 2010-2012: 2010 and 2011 certain, 2009 and 2012 edges
+    w.stint(edge_only, "A", start_year=2011, end_year=2011)  # only edge seasons (2010, 2011)
+    w.stint(undated_too, "A", start_year=2011, end_year=2011)
+    w.fact(undated_too["id"], "played_for", w.clubs["B"]["id"], apps=5, date_quality="undated")
+    w.stint(weak, "A", apps=None)
+    w.fact(only_undated["id"], "played_for", w.clubs["A"]["id"], apps=5, date_quality="undated")
+    w.fact(only_undated["id"], "nationality", undated_country["id"])
+    w.stint(other, "A")
+    w.run("bundesliga_nationality")
+    prompt = w.only("bundesliga_nationality", country=w.country["wikidata_id"])
+    answers = w.answers(prompt["id"])
+    assert set(answers) == {strong["id"], edge_only["id"], undated_too["id"], weak["id"]}
+    assert answers[strong["id"]]["flags"] == []
+    assert answers[edge_only["id"]]["flags"] == ["edge_season"]
+    # Its undated spell at B is skipped: only the edge-only dated spell counts.
+    assert answers[undated_too["id"]]["flags"] == ["edge_season"]
+    assert answers[weak["id"]]["flags"] == ["weak_stint"]
+    assert nat[strong["id"]] in answers[strong["id"]]["evidence_fact_ids"]
+    assert prompt["text"] == ("Name a player with Test Country citizenship who played in the Test League"
+                              " since 2000")
+    assert prompt["club_ids"] == []
+    # Countries enumerated only with a dated-season answer: not the undated-only one.
+    assert len(w.prompts("bundesliga_nationality")) == 2
+
+
+def test_club_title_winners_need_a_stint_covering_a_won_season(world):
+    w = world
+    winner, edge, late, other_club, undated, weak = (
+        w.person(n) for n in ("Winner", "Edge", "Late", "OtherClub", "Undated", "Weak"))
+    won = w.fact(w.clubs["A"]["id"], "won", w.comp["id"], start_year=2010, end_year=2011)
+    w.fact(w.clubs["A"]["id"], "won", w.comp["id"], stale=True, start_year=2012, end_year=2013)
+    w.stint(winner, "A")  # 2010-2012 covers 2010 for certain
+    w.stint(edge, "A", start_year=2011, end_year=2013)  # reaches 2010 only as a possible winter arrival
+    w.stint(late, "A", start_year=2012, end_year=2013)
+    w.stint(other_club, "B")
+    w.fact(undated["id"], "played_for", w.clubs["A"]["id"], apps=5, date_quality="undated")
+    w.stint(weak, "A", apps=None)
+    w.run("club_title_winners")
+    [prompt] = w.prompts("club_title_winners")  # only A has a (non-stale) won fact
+    answers = w.answers(prompt["id"])
+    assert set(answers) == {winner["id"], edge["id"], weak["id"]}
+    assert answers[winner["id"]]["flags"] == []
+    assert answers[edge["id"]]["flags"] == ["edge_season"]
+    assert answers[weak["id"]]["flags"] == ["weak_stint"]
+    assert won in answers[winner["id"]]["evidence_fact_ids"]
+    assert prompt["params"] == {"club": w.clubs["A"]["wikidata_id"]}
+    assert prompt["text"] == "Name a player who won the Test League with Test Club A since 2000"
+    assert prompt["club_ids"] == [w.clubs["A"]["id"]]
+
+
+def test_multi_club_coaches_need_two_clubs_with_dated_seasons(world):
+    w = world
+    two, edge, undated_second, one, weak = (w.person(n) for n in ("Two", "Edge", "UndatedSecond", "One", "Weak"))
+    w.stint(two, "A", predicate="coached", apps=None, start_year=2009, end_year=2011)
+    w.stint(two, "B", predicate="coached", apps=None)
+    w.stint(edge, "A", predicate="coached", apps=None, start_year=2009, end_year=2011)
+    w.stint(edge, "B", predicate="coached", apps=None, start_year=2011, end_year=2011)  # edge seasons only
+    w.stint(undated_second, "A", predicate="coached", apps=None)
+    w.fact(undated_second["id"], "coached", w.clubs["B"]["id"], date_quality="undated")
+    w.stint(one, "A", predicate="coached", apps=None)
+    w.stint(one, "A", predicate="coached", apps=None, start_year=2008, end_year=2009)
+    w.stint(weak, "A", predicate="coached", apps=None, start_year=2009, end_year=2011)
+    w.stint(weak, "B", predicate="coached", apps=None, date_quality="open_ended", start_year=2009, end_year=None,
+            end_precision=None)
+    w.run("multi_club_coaches")
+    [prompt] = w.prompts("multi_club_coaches")
+    answers = w.answers(prompt["id"])
+    assert set(answers) == {two["id"], edge["id"], weak["id"]}
+    assert answers[two["id"]]["flags"] == []
+    assert answers[edge["id"]]["flags"] == ["edge_season"]
+    assert answers[weak["id"]]["flags"] == ["weak_stint"]
+    assert prompt["params"] == {"competition": w.comp["wikidata_id"]}
+    assert prompt["text"] == "Name a coach who managed at least two Test League clubs since 2000"
+    assert prompt["club_ids"] == []
+
+
+def test_multi_club_coaches_not_generated_without_a_qualifying_coach(world):
+    w = world
+    w.stint(w.person("One"), "A", predicate="coached")
+    w.run("multi_club_coaches")
+    assert w.prompts("multi_club_coaches") == []
 
 
 def test_relegated_clubs_from_season_gaps(world):

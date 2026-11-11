@@ -78,8 +78,16 @@ def generate(conn: psycopg.Connection, competition_qid: str, tunables: dict,
         cur.execute("select max(last_seen_at) as t from facts")
         facts_as_of = cur.fetchone()["t"]
 
+        # Open-ended spells from this season on are current, not weak: the latest season in the data
+        # minus the tunable window (rendered as a literal into each stored answer_query).
+        cur.execute("select max(season_start_year) as y from club_seasons where competition_id = %s",
+                    (comp["id"],))
+        latest_season = cur.fetchone()["y"]
+        if latest_season is None:
+            raise SystemExit(f"No seasons for {competition_qid}; run the ingest first.")
         ctx = {"competition": competition_qid,
-               "teams_per_season": tunables["ingest"]["coverage"]["teams_per_season"]}
+               "teams_per_season": tunables["ingest"]["coverage"]["teams_per_season"],
+               "current_from_year": latest_season - (tunables["prompts"]["open_ended_current_seasons"] - 1)}
         wording_ctx = {"start_year": tunables["ingest"]["start_year"], "competition": comp["canonical_name"]}
         quality_gates = tunables["quality_gates"]
 

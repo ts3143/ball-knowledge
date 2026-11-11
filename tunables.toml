@@ -26,6 +26,14 @@ prior_weight_picks = 50
 # hipster_auto_flag_ratio = TBD (step 3) — observed share ≫ predicted
 
 # ---------------------------------------------------------------------------
+# Prompt generation (step 2)
+# ---------------------------------------------------------------------------
+[prompts]
+# An open-ended spell that started within this many of the latest competition seasons in the data
+# counts as current (not weak). 2 with a latest season of 2025-26 means start_year >= 2024.
+open_ended_current_seasons = 2
+
+# ---------------------------------------------------------------------------
 # Prompt quality gates (step 2)
 # ---------------------------------------------------------------------------
 [quality_gates]

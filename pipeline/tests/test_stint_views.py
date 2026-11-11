@@ -1,4 +1,4 @@
-"""stints / stint_seasons views on placeholder rows inside a rolled-back transaction. Needs the local database."""
+"""stints / stint_seasons functions on placeholder rows inside a rolled-back transaction. Needs the local database."""
 
 from datetime import date
 
@@ -11,6 +11,9 @@ pytestmark = pytest.mark.db
 
 # Placeholder seasons: 2008-09 .. 2012-13, Aug 1 to May 31 (no real fixtures or facts).
 FIRST_SEASON, LAST_SEASON = 2008, 2012
+# Open-ended spells starting at or after this year are current. The default is past every placeholder start,
+# so existing cases see no current spells.
+CUTOFF = 2100
 
 
 @pytest.fixture
@@ -67,16 +70,17 @@ class Fixture:
              *cols.values()),
         )
 
-    def seasons(self, predicate="played_for"):
+    def seasons(self, predicate="played_for", cutoff=CUTOFF):
         rows = self.cur.execute(
-            "select season_start_year, edge, weak_reasons from stint_seasons"
+            "select season_start_year, edge, weak_reasons from stint_seasons(%s)"
             " where person_id = %s and predicate = %s order by 1",
-            (self.person, predicate),
+            (cutoff, self.person, predicate),
         ).fetchall()
         return {year: (edge, weak) for year, edge, weak in rows}
 
-    def stints(self):
-        return self.cur.execute("select fact_id from stints where person_id = %s", (self.person,)).fetchall()
+    def stints(self, cutoff=CUTOFF):
+        return self.cur.execute("select fact_id from stints(%s) where person_id = %s",
+                                (cutoff, self.person)).fetchall()
 
 
 @pytest.fixture
@@ -143,12 +147,55 @@ def test_open_ended_covers_from_start_weak(fx):
     assert got[2009][0] is True
 
 
+def test_open_ended_starting_at_the_cutoff_is_current(fx):
+    fx.stint(quality="open_ended", start_year=2010, start_date=date(2010, 1, 1), start_precision=9)
+    got = fx.seasons(cutoff=2010)
+    assert sorted(got) == [2009, 2010, 2011, 2012]
+    assert got[2010] == (False, [])
+    assert fx.seasons(cutoff=2011)[2010] == (False, ["open_ended"])
+
+
+def test_open_ended_starting_after_the_cutoff_is_current(fx):
+    fx.stint(quality="open_ended", start_year=2011, start_date=date(2011, 1, 1), start_precision=9)
+    assert fx.seasons(cutoff=2010)[2011] == (False, [])
+
+
+def test_open_ended_starting_before_the_cutoff_is_weak(fx):
+    fx.stint(quality="open_ended", start_year=2009, start_date=date(2009, 1, 1), start_precision=9)
+    assert all(weak == ["open_ended"] for _, weak in fx.seasons(cutoff=2010).values())
+
+
+def test_open_ended_without_a_start_year_is_weak(fx):
+    fx.stint(quality="open_ended")
+    assert all(weak == ["open_ended"] for _, weak in fx.seasons(cutoff=2010).values())
+
+
+def test_undated_stays_weak_whatever_the_cutoff(fx):
+    fx.stint(quality="undated")
+    assert all(weak == ["undated"] for _, weak in fx.seasons(cutoff=2000).values())
+
+
+def test_stint_seasons_expose_date_quality(fx):
+    fx.stint(quality="undated")
+    fx.stint(start_year=2009, end_year=2010, start_precision=9, end_precision=9, start_date=date(2009, 1, 1),
+             end_date=date(2010, 1, 1))
+    got = {q for (q,) in fx.cur.execute(
+        "select date_quality from stint_seasons(%s) where person_id = %s", (CUTOFF, fx.person)).fetchall()}
+    assert got == {"undated", "dated"}
+
+
+def test_functions_are_not_executable_by_the_data_api_roles(fx):
+    for role in ("anon", "authenticated", "public"):
+        for fn in ("stints(int)", "stint_seasons(int)"):
+            assert fx.cur.execute("select has_function_privilege(%s, %s, 'execute')", (role, fn)).fetchone() == (False,)
+
+
 def test_apps_weak_reasons_only_for_played_for(fx):
     fx.stint(quality="undated", apps=None)
     fx.stint(quality="undated", apps=0)
     fx.stint(predicate="coached", quality="undated", apps=None)
     reasons = {(r[0], r[1], tuple(r[2])) for r in fx.cur.execute(
-        "select predicate, apps, weak_reasons from stints where person_id = %s", (fx.person,)).fetchall()}
+        "select predicate, apps, weak_reasons from stints(%s) where person_id = %s", (CUTOFF, fx.person)).fetchall()}
     assert ("played_for", None, ("undated", "no_apps")) in reasons
     assert ("played_for", 0, ("undated", "zero_apps")) in reasons
     assert ("coached", None, ("undated",)) in reasons
@@ -163,8 +210,8 @@ def test_stale_facts_excluded(fx):
 def test_dewiki_coached_row_behaves_as_year_precision(fx):
     fx.stint(predicate="coached", source="dewiki", start_year=2009, end_year=2011, apps=None)
     row = fx.cur.execute(
-        "select earliest_start, latest_start, earliest_end, latest_end, weak_reasons from stints"
-        " where person_id = %s", (fx.person,)).fetchone()
+        "select earliest_start, latest_start, earliest_end, latest_end, weak_reasons from stints(%s)"
+        " where person_id = %s", (CUTOFF, fx.person)).fetchone()
     assert row == (date(2009, 1, 1), date(2009, 12, 31), date(2011, 1, 1), date(2011, 12, 31), [])
     got = {y: e for y, (e, _) in fx.seasons("coached").items()}
     assert got == {2008: True, 2009: False, 2010: False, 2011: True}

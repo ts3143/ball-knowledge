@@ -9,7 +9,7 @@ with comp_clubs as (
 ),
 played as (
   select distinct s.person_id, cc.wikidata_id, cc.qid_num
-  from stints s
+  from stints(%(current_from_year)s) s
   join comp_clubs cc on cc.id = s.club_id
   where s.predicate = 'played_for'
 )

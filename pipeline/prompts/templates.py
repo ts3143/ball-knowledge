@@ -3,7 +3,8 @@
 (entity_id, evidence_fact_ids, flags). The SQL lives in sql/ with psycopg named parameters.
 
 Parameters are Wikidata QIDs (stable across re-ingests) or plain values such as event years.
-Both queries also receive `competition` (QID) and `teams_per_season` from the run's settings.
+Both queries also receive `competition` (QID), `teams_per_season` and `current_from_year` (open-ended
+spells starting at or after it are current, not weak) from the run's settings.
 """
 
 from dataclasses import dataclass
@@ -47,6 +48,21 @@ TEMPLATES: dict[str, Template] = {t.id: t for t in [
         id="club_coaches", answer_type="person",
         wording="Name a head coach of {club} since {start_year} (interim coaches count)",
         qid_params=("club",), club_params=("club",),
+    ),
+    Template(
+        id="bundesliga_nationality", answer_type="person",
+        wording="Name a player with {country} citizenship who played in the {competition} since {start_year}",
+        qid_params=("country",), club_params=(),
+    ),
+    Template(
+        id="club_title_winners", answer_type="person",
+        wording="Name a player who won the {competition} with {club} since {start_year}",
+        qid_params=("club",), club_params=("club",),
+    ),
+    Template(
+        id="multi_club_coaches", answer_type="person",
+        wording="Name a coach who managed at least two {competition} clubs since {start_year}",
+        qid_params=(), club_params=(),
     ),
     Template(
         id="relegated_clubs", answer_type="club",

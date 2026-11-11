@@ -2,7 +2,7 @@
 select co.wikidata_id as country, cl.wikidata_id as club
 from facts n
 join entities co on co.id = n.object_id and co.type = 'country'
-join stints s on s.person_id = n.subject_id and s.predicate = 'played_for'
+join stints(%(current_from_year)s) s on s.person_id = n.subject_id and s.predicate = 'played_for'
 join entities cl on cl.id = s.club_id and cl.type = 'club'
 where n.predicate = 'nationality' and not n.stale
   and exists (
