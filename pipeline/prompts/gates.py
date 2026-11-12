@@ -1,6 +1,7 @@
 """Quality gates, as pure functions over the numbers. The completeness gate is recorded as not run.
 The mix gate is a provisional pageview proxy and advisory in step 2 (T): it records what it would
-decide but never changes a prompt's status. Step 3 checks the real tier spread instead."""
+decide but never changes a prompt's status. The tier gate (rarity model, step 3) checks the real tier spread
+and blocks."""
 
 import math
 
@@ -42,9 +43,11 @@ def mix_gate(fames: list[int], cutoffs: tuple[float, float], quality_gates: dict
 
 
 def gate_results(n: int, quality_gates: dict, mix: dict | None = None) -> dict:
+    """The tier gate is added by the rarity stage, for prompts that pass the size gate."""
     return {
         "size": size_gate(n, quality_gates["min_answers"], quality_gates["max_answers"]),
         "mix": mix if mix is not None else NOT_RUN,
+        "tiers": NOT_RUN,
         "completeness": NOT_RUN,
     }
 

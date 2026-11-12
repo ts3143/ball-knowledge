@@ -12,6 +12,7 @@ from rarity.model import (
     ModelParams,
     assign_tiers,
     difficulty_seed,
+    effective_tiers,
     hipster_candidates,
     posterior_shares,
     rate_prompt,
@@ -23,7 +24,7 @@ from rarity.model import (
 P = ModelParams(alpha=0.8, beta=0.5, half_life_seasons=10, fame_floor_views=100,
                 tier_names=("Bandwagon", "Casual", "Real One", "Deep Cut", "You Know Ball"),
                 cumulative_share=(0.50, 0.75, 0.90, 0.98, 1.00), points=(10, 25, 50, 75, 100),
-                hipster_pick_points=15, max_bandwagon_answer_share=0.34)
+                hipster_pick_points=15, max_bandwagon_answer_share=0.34, weak_answer_max_tier=3)
 
 
 def feats(fame=1000.0, tie=10.0, since=0.0):
@@ -40,7 +41,7 @@ def test_model_version_and_tunables_load():
     assert MODEL_VERSION == "rarity-1"
     tunables = tomllib.loads((Path(__file__).resolve().parents[2] / "tunables.toml").read_text())
     p = ModelParams.from_tunables(tunables)
-    assert (p.alpha, p.beta, p.half_life_seasons, p.fame_floor_views) == (0.8, 0.5, 10, 100)
+    assert (p.alpha, p.beta, p.half_life_seasons, p.fame_floor_views) == (0.6, 0.5, 10, 100)
     assert p.max_bandwagon_answer_share == 0.34 and p.cumulative_share[-1] == 1.0
     assert p.points == (10, 25, 50, 75, 100) and p.hipster_pick_points == 15
 
@@ -204,3 +205,18 @@ def test_rate_prompt_ties_the_pieces_together():
     assert r.tiers[15] == 1 and min(r.shares, key=r.shares.get) == 1
     assert r.expected_points == pytest.approx(math.fsum(r.shares[e] * r.points[e] for e in fs))
     assert r.gate["n"] == 15
+
+
+def test_the_weak_cap_applies_to_weak_answers_only_and_the_gate_runs_on_the_capped_tiers():
+    assert effective_tiers({1: 1, 2: 3, 3: 4, 4: 5}, frozenset({1, 3, 4}), P) == {1: 1, 2: 3, 3: 3, 4: 3}
+    # 15 answers whose deepest tiers hold only weak ones: on model tiers the gate passes, on capped tiers it fails
+    fs = {i: feats(fame=1e6 * 0.45 ** i, tie=20.0, since=0.0) for i in range(15)}
+    plain = rate_prompt(fs, P)
+    assert plain.gate["pass"] and plain.model_gate["pass"]
+    deep = frozenset(e for e, t in plain.model_tiers.items() if t >= 4)
+    capped = rate_prompt(fs, P, weak=deep)
+    assert capped.model_tiers == plain.model_tiers and capped.model_gate == plain.model_gate
+    assert all(t == 3 for e, t in capped.tiers.items() if e in deep)
+    assert capped.points[max(deep)] == 50 and plain.points[max(deep)] > 50
+    assert not capped.gate["pass"] and capped.model_gate["pass"]
+    assert {"empty tier: Deep Cut", "empty tier: You Know Ball"} <= set(capped.gate["reasons"])

@@ -14,7 +14,7 @@ from ingest.normalize import normalize
 from prompts.templates import TEMPLATES
 
 from .features import Features
-from .model import ModelParams, RatedPrompt, rate_prompt
+from .model import WEAK_FLAG, ModelParams, RatedPrompt, rate_prompt
 
 SWEEP_KEYS = ("alpha", "beta", "half_life_seasons", "fame_floor_views", "max_bandwagon_answer_share")
 TIER_MISS_BAR = 0  # T-top answers allowed in Deep Cut or You Know Ball
@@ -33,8 +33,12 @@ class Rated:
         return len(self.features)
 
 
+def weak_answers(prompt) -> frozenset[int]:
+    return frozenset(e for e, flags in prompt.flags.items() if WEAK_FLAG in flags)
+
+
 def rate_all(prompts, features: dict[int, dict[int, Features]], mp: ModelParams) -> list[Rated]:
-    return [Rated(p, features[p.id], rate_prompt(features[p.id], mp)) for p in prompts]
+    return [Rated(p, features[p.id], rate_prompt(features[p.id], mp, weak=weak_answers(p))) for p in prompts]
 
 
 # ---------------------------------------------------------------------------

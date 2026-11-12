@@ -7,6 +7,7 @@ import math
 from dataclasses import dataclass
 
 MODEL_VERSION = "rarity-1"
+WEAK_FLAG = "weak_stint"  # prompt_answers.flags value of an answer whose dates are uncertain
 _ROUND = 6
 _EPS = 1e-9
 
@@ -22,6 +23,28 @@ class ModelParams:
     points: tuple[int, ...]
     hipster_pick_points: int
     max_bandwagon_answer_share: float
+    weak_answer_max_tier: int  # an answer flagged weak_stint never counts deeper than this tier
+
+    def to_params(self) -> dict:
+        """The parameters as stored in prompts.rarity, enough to recompute a stored prompt."""
+        return {
+            "alpha": self.alpha, "beta": self.beta, "half_life_seasons": self.half_life_seasons,
+            "fame_floor_views": self.fame_floor_views, "tier_names": list(self.tier_names),
+            "cumulative_share": list(self.cumulative_share), "points": list(self.points),
+            "hipster_pick_points": self.hipster_pick_points,
+            "max_bandwagon_answer_share": self.max_bandwagon_answer_share,
+            "weak_answer_max_tier": self.weak_answer_max_tier}
+
+    @classmethod
+    def from_params(cls, params: dict) -> "ModelParams":
+        """The inverse of to_params; other keys in `params` (fame weights, feature tunables) are ignored."""
+        return cls(
+            alpha=params["alpha"], beta=params["beta"], half_life_seasons=params["half_life_seasons"],
+            fame_floor_views=params["fame_floor_views"], tier_names=tuple(params["tier_names"]),
+            cumulative_share=tuple(params["cumulative_share"]), points=tuple(params["points"]),
+            hipster_pick_points=params["hipster_pick_points"],
+            max_bandwagon_answer_share=params["max_bandwagon_answer_share"],
+            weak_answer_max_tier=params["weak_answer_max_tier"])
 
     @classmethod
     def from_tunables(cls, tunables: dict) -> "ModelParams":
@@ -31,16 +54,19 @@ class ModelParams:
             fame_floor_views=m["fame_floor_views"], tier_names=tuple(tiers["names"]),
             cumulative_share=tuple(tiers["cumulative_share"]), points=tuple(tiers["points"]),
             hipster_pick_points=tiers["hipster_pick_points"],
-            max_bandwagon_answer_share=tunables["rarity"]["tier_gate"]["max_bandwagon_answer_share"])
+            max_bandwagon_answer_share=tunables["rarity"]["tier_gate"]["max_bandwagon_answer_share"],
+            weak_answer_max_tier=tunables["rarity"]["weak_answer_max_tier"])
 
 
 @dataclass(frozen=True)
 class RatedPrompt:
     scores: dict[int, float]
     shares: dict[int, float]
-    tiers: dict[int, int]  # 1 (Bandwagon) to 5
+    tiers: dict[int, int]  # effective: 1 (Bandwagon) to 5, weak answers capped; points follow it
+    model_tiers: dict[int, int]  # before the cap
     points: dict[int, int]
-    gate: dict
+    gate: dict  # on the effective tiers
+    model_gate: dict  # the same gate on the model tiers, to see what the cap costs
     expected_points: float
     log_recall_mass: float
 
@@ -83,6 +109,11 @@ def assign_tiers(scores: dict[int, float], shares: dict[int, float], cumulative_
     return tiers
 
 
+def effective_tiers(model_tiers: dict[int, int], weak: frozenset[int], p: ModelParams) -> dict[int, int]:
+    """A weak answer is capped at weak_answer_max_tier; the rest keep the model's tier."""
+    return {e: min(t, p.weak_answer_max_tier) if e in weak else t for e, t in model_tiers.items()}
+
+
 def answer_points(tier: int, hipster: bool, p: ModelParams) -> int:
     return p.hipster_pick_points if hipster else p.points[tier - 1]
 
@@ -115,15 +146,18 @@ def difficulty_seed(shares: dict[int, float], points: dict[int, int], scores: di
     return expected, top + math.log(math.fsum(math.exp(scores[e] - top) for e in sorted(scores)))
 
 
-def rate_prompt(features: dict, p: ModelParams, hipster: frozenset[int] = frozenset()) -> RatedPrompt:
+def rate_prompt(features: dict, p: ModelParams, hipster: frozenset[int] = frozenset(),
+                weak: frozenset[int] = frozenset()) -> RatedPrompt:
     """Everything the model says about one prompt. features: entity_id -> Features (fame, tie_amount,
-    seasons_since)."""
+    seasons_since); weak: the answers flagged weak_stint."""
     scores = {e: score(f.fame, f.tie_amount, f.seasons_since, p) for e, f in features.items()}
     shares = softmax_shares(scores)
-    tiers = assign_tiers(scores, shares, p.cumulative_share)
+    model_tiers = assign_tiers(scores, shares, p.cumulative_share)
+    tiers = effective_tiers(model_tiers, weak, p)
     points = {e: answer_points(t, e in hipster, p) for e, t in tiers.items()}
     expected, mass = difficulty_seed(shares, points, scores)
-    return RatedPrompt(scores, shares, tiers, points, tier_gate(tiers, shares, p), expected, mass)
+    return RatedPrompt(scores, shares, tiers, model_tiers, points, tier_gate(tiers, shares, p),
+                       tier_gate(model_tiers, shares, p), expected, mass)
 
 
 # ---------------------------------------------------------------------------

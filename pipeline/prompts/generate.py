@@ -13,7 +13,9 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
 from ingest.console import log
-from rarity.features import latest_season
+from rarity.features import AnswerSet, latest_season, load_evidence
+from rarity.model import ModelParams
+from rarity.stage import RARITY_COLUMNS, exact_floats, pageviews_through, rate_for_storage, stored_params
 
 from . import gates
 from .templates import TEMPLATES, Template
@@ -29,6 +31,9 @@ class Generated:
     answers: dict[int, tuple[list[int], list[str]]]  # entity_id -> (evidence_fact_ids, flags)
     gate_results: dict = field(default_factory=dict)  # set by _apply_gates
     status: str = "candidate"
+    rarity: dict | None = None  # prompts.rarity, set by _rate for size-passing prompts
+    rarity_answers: dict[int, tuple] = field(default_factory=dict)  # entity_id -> RARITY_COLUMNS values
+    weak_cap_cost: bool = False  # passes the tier gate on model tiers, fails it on the capped tiers
 
     @property
     def key(self) -> tuple[str, str]:
@@ -46,7 +51,10 @@ class ApprovedDiff:
 @dataclass
 class Stats:
     generated: int = 0
-    gate_passed: int = 0
+    size_passed: int = 0  # passes the size gate, so it is rated
+    gate_passed: int = 0  # passes every blocking gate: size and tiers
+    tier_failed: int = 0  # passes size, fails the tier gate
+    weak_cap_cost: int = 0  # passes the tier gate on model tiers, fails it on capped tiers
     too_few: int = 0
     too_many: int = 0
     too_few_obvious: int = 0  # advisory mix gate, over all generated prompts
@@ -60,6 +68,7 @@ class Stats:
     deleted: int = 0
     approved: int = 0
     approved_gone: int = 0
+    approved_params_differ: int = 0  # approved prompts whose stored rarity params differ from the current ones
     approved_diffs: list[ApprovedDiff] = field(default_factory=list)
 
 
@@ -79,6 +88,7 @@ def generate(conn: psycopg.Connection, competition_qid: str, tunables: dict,
     """Runs the templates against the database behind `conn`; returns stats per template id."""
     stored = [TEMPLATES[t] for t in (template_ids or TEMPLATES)]
     with conn.transaction(force_rollback=dry_run), conn.cursor(row_factory=dict_row) as cur:
+        exact_floats(cur)  # stored floats are compared with the new ones
         cur.execute("select id, canonical_name from entities where wikidata_id = %s and type = 'competition'",
                     (competition_qid,))
         comp = cur.fetchone()
@@ -103,6 +113,7 @@ def generate(conn: psycopg.Connection, competition_qid: str, tunables: dict,
             log(f"{template.id}: {len(by_template[template.id])} prompts")
         _apply_gates([g for gs in by_template.values() for g in gs], cur, quality_gates)
 
+        _rate([g for t in stored for g in by_template[t.id]], cur, competition_qid, tunables)
         return {t.id: _store(cur, t, comp["id"], by_template[t.id], facts_as_of, quality_gates) for t in stored}
 
 
@@ -149,12 +160,34 @@ def _apply_gates(generated: list[Generated], cur, quality_gates: dict) -> None:
         g.status = gates.status(g.gate_results)
 
 
+def _rate(generated: list[Generated], cur, competition_qid: str, tunables: dict) -> None:
+    """The rarity model, for size-passing prompts of the templates being stored. Each prompt is rated from its
+    own answers only, so --template cannot change a value. Adds the tier gate and recomputes the status."""
+    targets = [g for g in generated if g.gate_results["size"]["pass"]]
+    if not targets:
+        return
+    ev = load_evidence(cur, [AnswerSet(g.template.id, g.club_ids, {e: a[0] for e, a in g.answers.items()})
+                             for g in targets], competition_qid, tunables)
+    mp = ModelParams.from_tunables(tunables)
+    params, through = stored_params(mp, ev, tunables), pageviews_through(cur)
+    for g in targets:
+        answer_set = AnswerSet(g.template.id, g.club_ids, {e: a[0] for e, a in g.answers.items()})
+        stored = rate_for_storage(answer_set, {e: a[1] for e, a in g.answers.items()}, ev, mp, params, through)
+        g.rarity, g.rarity_answers = stored.prompt, stored.answers
+        g.gate_results["tiers"] = stored.gate
+        g.weak_cap_cost = stored.model_gate_pass and not stored.gate["pass"]
+        g.status = gates.status(g.gate_results)
+
+
 def _store(cur, template: Template, competition_id: int, generated: list[Generated], facts_as_of,
            quality_gates: dict) -> Stats:
     stats = Stats(generated=len(generated))
     for g in generated:
         size, mix = g.gate_results["size"], g.gate_results["mix"]
         stats.gate_passed += g.status == "gate_passed"
+        stats.size_passed += size["pass"]
+        stats.tier_failed += g.rarity is not None and not g.gate_results["tiers"]["pass"]
+        stats.weak_cap_cost += g.weak_cap_cost
         stats.mix_would_fail += size["pass"] and not mix["pass"]
         stats.too_few += size["n"] < size["min"]
         stats.too_many += size["n"] > size["max"]
@@ -165,28 +198,29 @@ def _store(cur, template: Template, competition_id: int, generated: list[Generat
         stats.pass_at_min[alt] = len(sized)
         stats.pass_at_min_mix[alt] = sum(g.gate_results["mix"]["pass"] for g in sized)
 
-    cur.execute("select id, params, status, text, answer_query, club_ids, gate_results, answer_count"
+    cur.execute("select id, params, status, text, answer_query, club_ids, gate_results, answer_count, rarity"
                 " from prompts where competition_id = %s and template = %s", (competition_id, template.id))
     existing = {(template.id, params_key(r["params"])): r for r in cur.fetchall()}
-    old_answers: dict[int, dict[int, tuple[list[int], list[str]]]] = {pid: {} for pid in
-                                                                       (r["id"] for r in existing.values())}
-    cur.execute("select prompt_id, entity_id, evidence_fact_ids, flags from prompt_answers"
-                " where prompt_id = any(%s)", ([r["id"] for r in existing.values()],))
+    old_answers: dict[int, dict[int, tuple]] = {pid: {} for pid in (r["id"] for r in existing.values())}
+    cur.execute(f"select prompt_id, entity_id, evidence_fact_ids, flags, {', '.join(RARITY_COLUMNS)}"
+                " from prompt_answers where prompt_id = any(%s)", ([r["id"] for r in existing.values()],))
     for r in cur.fetchall():
-        old_answers[r["prompt_id"]][r["entity_id"]] = (r["evidence_fact_ids"], r["flags"])
+        rated = tuple(r[c] for c in RARITY_COLUMNS) if r["score"] is not None else None
+        old_answers[r["prompt_id"]][r["entity_id"]] = (r["evidence_fact_ids"], r["flags"], rated)
 
     produced = set()
     for g in generated:
         produced.add(g.key)
         row = existing.get(g.key)
+        answers = {e: (*a, g.rarity_answers.get(e)) for e, a in g.answers.items()}
         if row is None:
             cur.execute(
                 "insert into prompts (template, params, text, answer_type, answer_query, competition_id,"
-                " club_ids, status, gate_results, answer_count, facts_as_of)"
-                " values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) returning id",
+                " club_ids, status, gate_results, answer_count, facts_as_of, rarity)"
+                " values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) returning id",
                 (template.id, Jsonb(g.params), g.text, template.answer_type, g.answer_query, competition_id,
-                 g.club_ids, g.status, Jsonb(g.gate_results), len(g.answers), facts_as_of))
-            _insert_answers(cur, cur.fetchone()["id"], g.answers)
+                 g.club_ids, g.status, Jsonb(g.gate_results), len(g.answers), facts_as_of, Jsonb(g.rarity)))
+            _insert_answers(cur, cur.fetchone()["id"], answers)
             stats.inserted += 1
             continue
 
@@ -195,23 +229,25 @@ def _store(cur, template: Template, competition_id: int, generated: list[Generat
             stats.approved += 1
             if before.keys() != g.answers.keys():
                 stats.approved_diffs.append(_approved_diff(cur, row, before, g))
+            if g.rarity is not None and (row["rarity"] or {}).get("params") != g.rarity["params"]:
+                stats.approved_params_differ += 1
             continue
 
         same = (row["text"], row["answer_query"], row["club_ids"], row["status"], row["gate_results"],
-                row["answer_count"], before) == (g.text, g.answer_query, g.club_ids, g.status, g.gate_results,
-                                                 len(g.answers), g.answers)
+                row["answer_count"], row["rarity"], before) == (g.text, g.answer_query, g.club_ids, g.status,
+                                                                g.gate_results, len(g.answers), g.rarity, answers)
         if same:
             stats.unchanged += 1
             continue
         # facts_as_of moves only with a real change, so re-running after an unrelated ingest is a no-op.
         cur.execute(
             "update prompts set text = %s, answer_query = %s, club_ids = %s, status = %s, gate_results = %s,"
-            " answer_count = %s, facts_as_of = %s, updated_at = now() where id = %s",
+            " answer_count = %s, facts_as_of = %s, rarity = %s, updated_at = now() where id = %s",
             (g.text, g.answer_query, g.club_ids, g.status, Jsonb(g.gate_results), len(g.answers), facts_as_of,
-             row["id"]))
-        if before != g.answers:
+             Jsonb(g.rarity), row["id"]))
+        if before != answers:
             cur.execute("delete from prompt_answers where prompt_id = %s", (row["id"],))
-            _insert_answers(cur, row["id"], g.answers)
+            _insert_answers(cur, row["id"], answers)
         stats.updated += 1
 
     gone = [r for k, r in existing.items() if k not in produced]
@@ -223,10 +259,14 @@ def _store(cur, template: Template, competition_id: int, generated: list[Generat
     return stats
 
 
-def _insert_answers(cur, prompt_id: int, answers: dict[int, tuple[list[int], list[str]]]) -> None:
+def _insert_answers(cur, prompt_id: int, answers: dict[int, tuple]) -> None:
+    """answers: entity_id -> (evidence_fact_ids, flags, RARITY_COLUMNS values or None when not rated)."""
+    unrated = (None,) * len(RARITY_COLUMNS[:-1]) + (False,)
     cur.executemany(
-        "insert into prompt_answers (prompt_id, entity_id, evidence_fact_ids, flags) values (%s, %s, %s, %s)",
-        [(prompt_id, entity_id, evidence, flags) for entity_id, (evidence, flags) in answers.items()])
+        f"insert into prompt_answers (prompt_id, entity_id, evidence_fact_ids, flags, {', '.join(RARITY_COLUMNS)})"
+        f" values (%s, %s, %s, %s, {', '.join(['%s'] * len(RARITY_COLUMNS))})",
+        [(prompt_id, entity_id, evidence, flags, *(rated or unrated))
+         for entity_id, (evidence, flags, rated) in answers.items()])
 
 
 def _approved_diff(cur, row: dict, before: dict, g: Generated) -> ApprovedDiff:
@@ -241,15 +281,18 @@ def print_summary(stats: dict[str, Stats], dry_run: bool) -> None:
     for template_id, s in stats.items():
         print(f"\n{template_id}")
         print(f"  generated {s.generated}   gate_passed {s.gate_passed}   "
-              f"failed: too few {s.too_few}, too many {s.too_many}   "
+              f"failed: too few {s.too_few}, too many {s.too_many}, tier gate {s.tier_failed}   "
               f"(advisory mix: too few obvious {s.too_few_obvious}, too few obscure {s.too_few_obscure})")
         print(f"  mix (advisory, not rejecting): would fail for {s.mix_would_fail} of the {s.gate_passed} gate_passed")
         print("  would pass size at min answers  " + "   ".join(f"{m}: {n}" for m, n in s.pass_at_min.items())
               + "   (of which mix would pass: "
               + ", ".join(f"{m}: {n}" for m, n in s.pass_at_min_mix.items()) + ")")
+        print(f"  size gate passed {s.size_passed}, tier gate blocks {s.tier_failed} of those "
+              f"(the weak-answer cap alone costs {s.weak_cap_cost})")
         print(f"  inserted {s.inserted}   updated {s.updated}   unchanged {s.unchanged}   deleted {s.deleted}")
         if s.approved or s.approved_gone:
             print(f"  approved {s.approved} (answer set differs: {len(s.approved_diffs)}, "
-                  f"no longer produced: {s.approved_gone})")
+                  f"no longer produced: {s.approved_gone}, rarity params differ from the current: "
+                  f"{s.approved_params_differ})")
         for d in s.approved_diffs:
             print(f"    prompt {d.prompt_id} \"{d.text}\": +{d.added or '-'} -{d.removed or '-'}")

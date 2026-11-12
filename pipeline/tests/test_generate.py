@@ -15,10 +15,25 @@ pytestmark = pytest.mark.db
 TUNABLES = {
     "prompts": {"open_ended_current_seasons": 2},
     "ingest": {"start_year": 2000, "coverage": {"teams_per_season": 3}},
+    "tiers": {"names": ["Bandwagon", "Casual", "Real One", "Deep Cut", "You Know Ball"],
+              "cumulative_share": [0.50, 0.75, 0.90, 0.98, 1.00], "points": [10, 25, 50, 75, 100],
+              "hipster_pick_points": 15},
     "quality_gates": {"min_answers": 1, "max_answers": 300, "report_min_answers_alternatives": [1, 2],
                       "mix_obvious_quantile": 0.75, "mix_obscure_quantile": 0.5,
                       "mix_min_obvious": 0, "mix_min_obscure": 0},
 }
+
+
+
+def rarity_tunables(competition_qid, **model):
+    """The rarity tunables of the placeholder world; `model` overrides [rarity.model] keys."""
+    return {
+        "fame_weights": {competition_qid: {"de": 1.0, "en": 0.4}},
+        "features": {"min_spell_seasons": 0.5, "imputed_apps_per_season": 16, "edge_season_weight": 0.5},
+        "model": {"alpha": 0.6, "beta": 0.5, "half_life_seasons": 10, "fame_floor_views": 100, **model},
+        "tier_gate": {"max_bandwagon_answer_share": 0.34}, "weak_answer_max_tier": 3,
+    }
+
 
 # Placeholder seasons (start year -> clubs): 2009 sees C relegated and D promoted, 2011 sees D relegated
 # and C promoted. 2012 lists only two clubs, so nothing can be decided about it; 2013 lists E as new, but
@@ -75,7 +90,7 @@ class World:
         return self.entity("person", name)
 
     def run(self, *templates, dry_run=False, **overrides):
-        tunables = {**TUNABLES, **overrides}
+        tunables = {**TUNABLES, "rarity": rarity_tunables(self.comp["wikidata_id"]), **overrides}
         return generate(self.conn, self.comp["wikidata_id"], tunables, list(templates) or None, dry_run)
 
     def prompts(self, template):
@@ -289,7 +304,9 @@ def test_club_title_winners_need_a_stint_covering_a_won_season(world):
     won = w.fact(w.clubs["A"]["id"], "won", w.comp["id"], start_year=2010, end_year=2011)
     w.fact(w.clubs["A"]["id"], "won", w.comp["id"], stale=True, start_year=2012, end_year=2013)
     w.stint(winner, "A")  # 2010-2012 covers 2010 for certain
-    w.stint(edge, "A", start_year=2011, end_year=2013)  # reaches 2010 only as a possible winter arrival
+    w.stint(edge, "A", start_year=2011, end_year=2013)  # 2011-2013 reaches 2010-11 only as an edge: summer rule
+    loan = w.person("Loan")
+    w.stint(loan, "A", start_year=2011, end_year=2011)  # a January-June 2011 spell may be in the 2010-11 title
     w.stint(late, "A", start_year=2012, end_year=2013)
     w.stint(other_club, "B")
     w.fact(undated["id"], "played_for", w.clubs["A"]["id"], apps=5, date_quality="undated")
@@ -297,9 +314,10 @@ def test_club_title_winners_need_a_stint_covering_a_won_season(world):
     w.run("club_title_winners")
     [prompt] = w.prompts("club_title_winners")  # only A has a (non-stale) won fact
     answers = w.answers(prompt["id"])
-    assert set(answers) == {winner["id"], edge["id"], weak["id"]}
+    assert set(answers) == {winner["id"], loan["id"], weak["id"]}  # not the 2011-2013 spell
     assert answers[winner["id"]]["flags"] == []
-    assert answers[edge["id"]]["flags"] == ["edge_season"]
+    assert answers[loan["id"]]["flags"] == ["edge_season"]  # same-year spell: kept, but only possibly a winner
+    assert edge["id"] not in answers  # the Fabian Johnson pattern: a multi-year spell starting in the title's second year
     assert answers[weak["id"]]["flags"] == ["weak_stint"]
     assert won in answers[winner["id"]]["evidence_fact_ids"]
     assert prompt["params"] == {"club": w.clubs["A"]["wikidata_id"]}
@@ -376,7 +394,7 @@ def test_answer_query_reproduces_the_answer_set(world):
         w.stint(p, "B")
     w.stint(p2, "B", apps=None)
     w.fact(w.clubs["A"]["id"], "won", w.comp["id"], start_year=2010, end_year=2011)
-    w.stint(winner, "A", start_year=2011, end_year=2013)  # reaches the 2010 title only as an edge
+    w.stint(winner, "A", start_year=2011, end_year=2011)  # a half-season spell reaches the 2010 title as an edge
     w.run("club_pair", "relegated_clubs", "club_title_winners")
     for template in ("club_pair", "relegated_clubs", "club_title_winners"):
         [prompt] = w.prompts(template)
@@ -436,8 +454,10 @@ def test_mix_gate_quantiles_are_per_entity_type_over_all_answer_sets(world):
                                         "pass": True, **cutoffs}
     assert b["gate_results"]["mix"] == {"obvious": 0, "obscure": 3, "min_obvious": 2, "min_obscure": 1,
                                         "pass": False, **cutoffs}
-    # The mix gate is advisory: B would fail it but stays gate_passed.
-    assert (a["status"], b["status"]) == ("gate_passed", "gate_passed")
+    # The mix gate is advisory: B fails it, A passes, and the status is the same: it follows the size and tier
+    # gates (a few answers cannot fill five tiers, so both fail the tier gate).
+    assert a["gate_results"]["tiers"]["pass"] is False and b["gate_results"]["tiers"]["pass"] is False
+    assert (a["status"], b["status"]) == ("gate_failed", "gate_failed")
     # Clubs: fames 0 and 100 -> cutoffs 75 and 50.
     [relegated] = w.prompts("relegated_clubs")
     assert relegated["gate_results"]["mix"]["obvious"] == 1
@@ -520,7 +540,8 @@ def test_approved_prompt_survives_when_no_longer_produced(world):
     f = w.stint(p1, "B")
     w.stint(p1, "A")
     w.run("club_pair")
-    w.cur.execute("update prompts set status = 'approved' where template = 'club_pair'")
+    w.cur.execute("update prompts set status = 'approved' where template = 'club_pair' and competition_id = %s",
+                  (w.comp["id"],))
     w.cur.execute("delete from facts where id = %s", (f,))
     stats = w.run("club_pair")["club_pair"]
     assert (stats.deleted, stats.approved_gone) == (0, 1)

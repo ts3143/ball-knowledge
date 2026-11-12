@@ -29,13 +29,18 @@ hipster_auto_flag_ratio = 3.0
 hipster_min_picks = 5
 # and its base tier is at least this deep (3 = Real One): an obvious answer is never a Hipster Pick.
 hipster_min_tier = 3
+# An answer flagged weak_stint (its dates are uncertain) never counts deeper than this tier (3 = Real One), so
+# it is worth at most that tier's points. T 2026-11-11. Edge-flagged answers are not capped. The tier gate runs
+# on the capped tiers.
+weak_answer_max_tier = 3
 
 # Pick-share model (step 3): share is proportional to
 #   (V + fame_floor_views)^alpha * (1 + tie)^beta * 2^(-seasons_since / half_life_seasons)
 # Starting values; chunk 2 tunes them against the sample tables and T's gut lists.
 [rarity.model]
-# Exponent on fame V: 10x the views gives 10^alpha = 6.3x the picks.
-alpha = 0.8
+# Exponent on fame V: 10x the views gives 10^alpha = 4x the picks. T 2026-11-11, from the gut sweep
+# (the design started at 0.8).
+alpha = 0.6
 # Exponent on tie (appearances or match equivalents): a 300-app regular gets about 8.7x a 3-app cameo.
 beta = 0.5
 # Seasons for the picks to halve since the answer's last tie to the prompt.

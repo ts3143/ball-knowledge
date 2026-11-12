@@ -20,7 +20,7 @@ from rarity.preview import StoredPrompt
 MP = ModelParams(alpha=0.8, beta=0.5, half_life_seasons=10, fame_floor_views=100,
                  tier_names=("Bandwagon", "Casual", "Real One", "Deep Cut", "You Know Ball"),
                  cumulative_share=(0.50, 0.75, 0.90, 0.98, 1.00), points=(10, 25, 50, 75, 100),
-                 hipster_pick_points=15, max_bandwagon_answer_share=0.34)
+                 hipster_pick_points=15, max_bandwagon_answer_share=0.34, weak_answer_max_tier=3)
 
 # placeholder names; fame falls with the id, so id 1 is the most obvious answer
 NAMES = {1: "Anna Müller", 2: "Ben Placeholder", 3: "Cem Ö'Neil", 4: "Dora Dummy", 5: "Eli Example",

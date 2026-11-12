@@ -1,14 +1,20 @@
 -- Players with a played_for season at the club in a season the club won the competition.
 -- Undated and end-only (no_start) spells are skipped. edge_season / weak_stint: every such title-season row is an edge / weak.
+-- Summer rule (T 2026-11-11): a year-only spell starts and ends in the summer, between seasons. So a title season
+-- the spell only possibly touches (edge) counts only when the spell starts and ends in the same year, e.g. a
+-- January to June loan; a multi-year spell starting in the title's second calendar year (2009-2011 for the 2008-09
+-- title) does not count. Other templates keep the benefit of the doubt.
 with title_rows as (
   select ss.person_id, ss.fact_id, w.id as won_fact_id, ss.edge, cardinality(ss.weak_reasons) > 0 as weak
   from stint_seasons(%(current_from_year)s) ss
   join entities c on c.id = ss.club_id and c.wikidata_id = %(club)s
   join entities comp on comp.id = ss.competition_id and comp.wikidata_id = %(competition)s
+  join facts sf on sf.id = ss.fact_id
   join facts w on w.subject_id = ss.club_id and w.object_id = ss.competition_id
               and w.predicate = 'won' and not w.stale and w.start_year = ss.season_start_year
   where ss.predicate = 'played_for' and ss.date_quality <> 'undated'
     and not ('no_start' = any(ss.weak_reasons))
+    and (not ss.edge or sf.start_year = sf.end_year)
 )
 select person_id as entity_id,
        array_agg(distinct fact_id order by fact_id) || array_agg(distinct won_fact_id order by won_fact_id)

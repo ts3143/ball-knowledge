@@ -6,6 +6,7 @@
     uv run python -m rarity preview --summary-only        # tier-gate, model and coverage numbers only
     uv run python -m rarity preview --sweep alpha=0.6,0.8,1.0 max_bandwagon_answer_share=0.3,0.34,0.4
     uv run python -m rarity preview --gut                 # compare the model with T's lists in gut.toml
+    uv run python -m rarity check                         # stored prompts recompute exactly (exit 1 if not)
     uv run python -m rarity gut-sheet                     # pipeline/data/calibration/gut.toml for T to fill in
     uv run python -m rarity gut-sheet --force             # overwrite an existing sheet
 """
@@ -17,6 +18,7 @@ import psycopg
 from ingest.config import load_settings
 from prompts.templates import TEMPLATES
 
+from .check import check
 from .preview import gut_sheet, preview
 
 
@@ -33,6 +35,7 @@ def main() -> None:
     prev.add_argument("--sweep", nargs="+", metavar="KEY=V1,V2",
                       help="summary numbers for every combination, e.g. alpha=0.6,0.8 max_bandwagon_answer_share=0.3,0.4")
     prev.add_argument("--gut", action="store_true", help="compare the model with T's top and bottom lists (gut.toml)")
+    commands.add_parser("check", help="recompute every stored prompt from its stored features and params")
     sheet = commands.add_parser("gut-sheet", help="write the sheet T fills in before seeing any tiers")
     sheet.add_argument("--force", action="store_true", help="overwrite an existing gut.toml")
     args = parser.parse_args()
@@ -43,6 +46,8 @@ def main() -> None:
         if args.command == "preview":
             preview(conn, settings.ingest["competition_qid"], settings.tunables, args.template, args.prompt,
                     args.limit, args.rows, args.summary_only, args.all_statuses, args.sweep, args.gut)
+        elif args.command == "check":
+            raise SystemExit(1 if check(conn) else 0)
         else:
             print(gut_sheet(conn, settings.tunables, args.force))
 
