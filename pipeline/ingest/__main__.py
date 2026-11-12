@@ -1,9 +1,11 @@
-"""Bundesliga ingest: Wikidata (+ German Wikipedia coaching tables) -> entities, entity_aliases,
-facts, entity_pageviews.
+"""Bundesliga ingest: Wikidata (+ German Wikipedia coach and player tables) -> entities,
+entity_aliases, facts, entity_pageviews.
 
     uv run python -m ingest bundesliga                  # full run (re-runnable)
     uv run python -m ingest bundesliga --skip-pageviews
     uv run python -m ingest bundesliga --report-only    # summary of what's in the database
+    uv run python -m ingest bundesliga --dry-run --skip-pageviews [--dry-run-cases CLUB:PERSON ...]
+                                                        # full extraction, load rolled back, diff printed
 """
 
 import argparse
@@ -11,16 +13,19 @@ import json
 import sys
 import time
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import UTC, date, datetime
 
 import psycopg
 
 from .config import CACHE_DIR, RAW_DIR, load_settings
-from .dewiki import DewikiApi, coach_stations
+from .dewiki import DewikiApi, Page, coach_stations, player_rows
+from .dryrun import dry_run
 from .extract import (
     P_COACH_OF,
     P_FAMILY_NAME,
     P_HEAD_COACH,
+    P_MEMBER_OF_TEAM,
     Q_SQUAD,
     Extraction,
     Scope,
@@ -59,9 +64,19 @@ def fill_missing_labels(api: EntityApi, entities: dict[str, dict], ids: list[str
                 entities[q]["labels"] = full[q].get("labels", {})
 
 
+@dataclass
+class DewikiContext:
+    api: DewikiApi
+    config: dict
+    club_articles: dict[str, str]
+    club_titles: dict[str, tuple[str, str | None]]
+    title_to_person: dict[str, str]
+    pages: dict[str, Page]      # by requested title (the person's dewiki sitelink)
+
+
 def coach_tables(settings, client: WikimediaClient, clubs: dict[str, dict], club_ids: set[str],
                  squad_to_club: dict[str, str], persons: dict[str, dict], api: EntityApi,
-                 ex: Extraction) -> list:
+                 ex: Extraction) -> tuple[list, DewikiContext]:
     """Infobox coaching rows at our clubs. Candidates are the articles in each club's dewiki coach
     category plus every person Wikidata links to a club as coach. People found only here are
     fetched from Wikidata and added to `persons`."""
@@ -85,9 +100,9 @@ def coach_tables(settings, client: WikimediaClient, clubs: dict[str, dict], club
         if not members:
             ex.stats["dewiki_clubs_without_coach_category"].append(club)
         titles.update(members)
-    pages = dw.pages(sorted(titles))
+    by_request = dw.pages(sorted(titles))
+    pages = {p.title: p for p in by_request.values()}
     ex.counts["dewiki_pages"] = len(pages)
-    pages = {p.title: p for p in pages.values()}
 
     # Articles not yet linked to a fetched person: look up their Wikidata items and fetch them.
     unknown = sorted(t for t in pages if t not in title_to_person)
@@ -100,7 +115,46 @@ def coach_tables(settings, client: WikimediaClient, clubs: dict[str, dict], club
     problems: list = []
     stations = coach_stations(pages, title_to_person, club_titles, ex.counts, problems)
     ex.stats["dewiki_unreadable_rows"] = problems
-    return stations
+    return stations, DewikiContext(dw, cfg, club_articles, club_titles, title_to_person, by_request | pages)
+
+
+def player_tables(ctx: DewikiContext, persons: dict[str, dict], club_ids: set[str],
+                  squad_to_club: dict[str, str], ex: Extraction) -> tuple[list, set]:
+    """Infobox career rows at our clubs for every person with a Wikidata played_for link to one of
+    our clubs and a dewiki article, including links the scope rules drop. Pages fetched for the
+    coaching tables are reused. Also counts (never fetches) the members of each club's dewiki player
+    category that map to no person we have."""
+    targets = {*club_ids, *squad_to_club}
+    player_people = {pid for pid, p in persons.items() if p["id"] == pid
+                     and any(snak_item(st["mainsnak"]) in targets for st in statements(p, P_MEMBER_OF_TEAM))}
+    wanted = sorted(t for t, pid in ctx.title_to_person.items() if pid in player_people)
+    todo = [t for t in wanted if t not in ctx.pages]
+    ex.counts["dewiki_player_candidates"] = len(player_people)
+    ex.counts["dewiki_player_candidates_with_article"] = len(wanted)
+    ex.counts["dewiki_player_pages_reused_from_coach_fetch"] = len(wanted) - len(todo)
+    ex.counts["dewiki_player_pages_fetched"] = len(todo)
+    ctx.pages.update(ctx.api.pages(todo))
+    pages = {t: ctx.pages[t] for t in wanted if t in ctx.pages}
+    ex.counts["dewiki_player_candidates_page_missing"] = len(wanted) - len(pages)
+
+    problems: list = []
+    unreadable: set = set()
+    rows = player_rows(pages, ctx.title_to_person, ctx.club_titles, ex.counts, problems, unreadable)
+    ex.stats["dewiki_player_unreadable_pairs"] = sorted(unreadable)
+    ex.stats["dewiki_player_unreadable_rows"] = problems
+
+    known = set(ctx.title_to_person)
+    category: dict[str, dict] = {}
+    unmapped_all: set[str] = set()
+    for club, article in ctx.club_articles.items():
+        members = set(ctx.api.category_members(ctx.config["player_category"].format(club=article)))
+        unmapped = members - known
+        category[club] = {"members": len(members), "unmapped": len(unmapped)}
+        unmapped_all |= unmapped
+    ex.stats["dewiki_player_category"] = category
+    ex.counts["dewiki_player_category_members_total"] = sum(c["members"] for c in category.values())
+    ex.counts["dewiki_player_category_unmapped_distinct"] = len(unmapped_all)
+    return rows, unreadable
 
 
 def ingest(settings, skip_pageviews: bool) -> Extraction:
@@ -148,11 +202,15 @@ def ingest(settings, skip_pageviews: bool) -> Extraction:
     persons = api.fetch(sorted(person_ids), "people")
 
     log("4/7 Coaching tables (German Wikipedia)")
-    stations = coach_tables(settings, client, clubs, club_ids, squad_to_club, persons, api, ex)
+    stations, dewiki = coach_tables(settings, client, clubs, club_ids, squad_to_club, persons, api, ex)
     log(f"  {len(stations)} readable rows at our clubs")
 
+    log("4b/7 Player career tables (German Wikipedia)")
+    career_rows, unreadable = player_tables(dewiki, persons, club_ids, squad_to_club, ex)
+    log(f"  {len(career_rows)} readable rows at our clubs")
+
     log("5/7 Scope rules")
-    in_scope = people_facts(persons, clubs, squad_to_club, club_ids, scope, ex, stations)
+    in_scope = people_facts(persons, clubs, squad_to_club, club_ids, scope, ex, stations, career_rows, unreadable)
     log(f"  {len(in_scope)} people in scope")
 
     log("6/7 Countries, positions, family names (wbgetentities)")
@@ -203,6 +261,7 @@ def ingest(settings, skip_pageviews: bool) -> Extraction:
     else:
         log("7/7 Pageviews skipped")
     ex.stats["pageview_rows"] = pageviews
+    ex.stats["http_requests"] = dict(client.requests)
     return ex
 
 
@@ -211,11 +270,20 @@ def main() -> None:
     parser.add_argument("competition", choices=["bundesliga"])
     parser.add_argument("--skip-pageviews", action="store_true", help="leave entity_pageviews as it is")
     parser.add_argument("--report-only", action="store_true", help="print the summary without ingesting")
+    parser.add_argument("--dry-run-cases", nargs="*", default=[], metavar="CLUB:PERSON",
+                        help="Wikidata ids of a club and a person whose spells there are printed before/after")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="full extraction and load inside a transaction that is rolled back; print the diff")
     args = parser.parse_args()
     settings = load_settings()
     t0 = time.monotonic()
 
     with psycopg.connect(settings.database_url) as conn:
+        if args.dry_run:
+            ex = ingest(settings, args.skip_pageviews)
+            pageviews = ex.stats.pop("pageview_rows")
+            dry_run(conn, ex, pageviews, time.monotonic() - t0, settings.tunables, args.dry_run_cases)
+            return
         if args.report_only:
             run = json.loads(RUN_STATS.read_text()) if RUN_STATS.exists() else None
         else:

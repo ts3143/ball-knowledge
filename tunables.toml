@@ -90,11 +90,13 @@ timeout_seconds = 90
 max_retries = 5
 
 [ingest.dewiki]
-# German Wikipedia infobox coaching tables: second source for coach spells only.
-# Exception to "Wikidata + pageviews only", approved by T on 2026-11-11.
+# German Wikipedia infobox tables: second source for coach spells (trainer_tabelle) and player stints
+# (vereine_tabelle, jugendvereine_tabelle). Exception to "Wikidata + pageviews only", approved by T on 2026-11-11.
 api_endpoint = "https://de.wikipedia.org/w/api.php"
 # Each club's dewiki article title fills {club}; the category's articles are candidate coaches.
 coach_category = "Kategorie:Fußballtrainer ({club})"
+# Counted only (members with no person in our data), to size how many players we don't have.
+player_category = "Kategorie:Fußballspieler ({club})"
 titles_per_request = 50
 pause_seconds = 0.2
 

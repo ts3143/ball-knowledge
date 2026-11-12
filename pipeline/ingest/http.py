@@ -5,7 +5,9 @@ import json
 import sys
 import threading
 import time
+from collections import Counter
 from pathlib import Path
+from urllib.parse import urlparse
 
 import httpx
 
@@ -40,12 +42,14 @@ class WikimediaClient:
         self.raw_dir = raw_dir
         self._dump_lock = threading.Lock()
         self._dump_count = 0
+        self.requests: Counter = Counter()  # HTTP requests sent, by host (retries included)
 
     def get_json(self, url: str, params: dict | None = None, limiter: RateLimiter | None = None,
                  allow_404: bool = False, dump_name: str | None = None) -> dict | None:
         for attempt in range(self.max_retries + 1):
             if limiter:
                 limiter.wait()
+            self.requests[urlparse(url).netloc] += 1
             try:
                 resp = self.client.get(url, params=params)
             except httpx.TransportError as exc:
@@ -74,6 +78,7 @@ class WikimediaClient:
         for attempt in range(self.max_retries + 1):
             if limiter:
                 limiter.wait()
+            self.requests[urlparse(url).netloc] += 1
             try:
                 resp = self.client.post(url, data=data, headers={"Accept": accept})
             except httpx.TransportError as exc:

@@ -1,9 +1,10 @@
 """Turns Wikidata responses into entity, alias and fact rows, applying the step-1 scope rules.
 
 Pure functions over parsed JSON: no network, no database. Every value comes from Wikidata,
-except coach spells, which may also come from German Wikipedia infobox coaching tables
-(see dewiki.py). Nothing here adds or corrects a fact. What doesn't fit the rules is counted
-in `stats` for the coverage report instead.
+except coach spells and player stints, which may also come from German Wikipedia infobox tables
+(trainer_tabelle, vereine_tabelle, jugendvereine_tabelle; see dewiki.py). Every fact or value taken
+from them is tagged dewiki (source, or a `dewiki*` qualifier on a Wikidata fact). Nothing here adds
+or corrects a fact. What doesn't fit the rules is counted in `stats` for the coverage report instead.
 """
 
 import re
@@ -11,7 +12,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import date
 
-from .dewiki import CoachStation
+from .dewiki import SENIOR_ROLES, CoachStation, PlayerRow
 from .normalize import german_translit, normalize
 
 # Wikidata properties and classes used by the scope rules.
@@ -43,6 +44,8 @@ HEAD_COACH_ROLES = {
     Q_CARETAKER,              # caretaker manager (de: Interimstrainer)
     "Q379533",                # player-coach (de: Spielertrainer), also in charge of the team
 }
+# classify_stint reasons for a kept-or-dropped stint whose dates don't prove the window.
+UNPROVEN_REASONS = ("in_by_birth_year", "unproven_dates_born_before_cutoff", "unproven_dates_birth_unknown")
 
 
 @dataclass(frozen=True)
@@ -389,18 +392,25 @@ def season_facts(seasons: dict[str, Season], winners: list[dict[str, str]], comp
 
 def people_facts(persons: dict[str, dict], clubs: dict[str, dict], squad_to_club: dict[str, str],
                  club_ids: set[str], scope: Scope, out: Extraction,
-                 stations: list[CoachStation] = ()) -> set[str]:
+                 stations: list[CoachStation] = (), player_rows: list[PlayerRow] = (),
+                 unreadable_rows: set = frozenset()) -> set[str]:
     """Stint, coach and attribute facts for people in scope. Returns the in-scope person ids.
 
     `stations` are infobox coaching rows at our clubs. A Wikidata coach link whose own dates
     don't prove the window is settled by the person's rows at that club when there are any,
-    instead of by the birth-year rule."""
+    instead of by the birth-year rule. `player_rows` are the infobox career rows at our clubs;
+    they settle Wikidata player links the same way and reconcile the others (_dewiki_player_facts).
+    `unreadable_rows` are the (person, club) pairs with a senior row we couldn't read: nothing of that
+    person at that club is dropped because of the rows we could read."""
     target_to_club = {c: c for c in club_ids} | squad_to_club
     candidate: dict[str, list[FactRow]] = defaultdict(list)
     reasons_by_person: dict[str, Counter] = defaultdict(Counter)
     birth_years: dict[str, int | None] = {}
     station_pairs = {(s.person, s.club) for s in stations}
     deferred: dict[tuple[str, str], list[str]] = defaultdict(list)
+    row_pairs = {(r.person, r.club) for r in player_rows}
+    unproven: dict[str, str] = {}                       # played_for statement id -> classify_stint reason
+    out_of_window: dict[str, dict[str, list[tuple[int | None, int | None]]]] = defaultdict(lambda: defaultdict(list))
 
     for pid, person in persons.items():
         if person["id"] != pid:
@@ -430,6 +440,17 @@ def people_facts(persons: dict[str, dict], clubs: dict[str, dict], squad_to_club
             reason = "deferred_to_dewiki"
             deferred[(person_id, club)].append(statement["id"])
             quality = None
+        if predicate == "played_for" and reason == "ended_before_window":
+            out_of_window[person_id][club].append((start.year if start else None, end.year if end else None))
+        if predicate == "played_for" and reason in UNPROVEN_REASONS and (person_id, club) in unreadable_rows:
+            # The old rule applies: kept when born in scope.min_birth_year or later, dropped otherwise.
+            out.counts["players_unproven_link_unreadable_row_guard:"
+                       + ("kept_old_rule" if reason == "in_by_birth_year" else "dropped_old_rule")] += 1
+        elif predicate == "played_for" and reason in UNPROVEN_REASONS and (person_id, club) in row_pairs:
+            # Kept for now, flagged: the person's career rows at this club date it, replace it or drop it.
+            unproven[statement["id"]] = reason
+            reason = "deferred_to_dewiki"
+            quality = "open_ended" if start is not None else "undated"
         out.counts[f"{predicate}:{reason}"] += 1
         reasons_by_person[person_id][reason] += 1
         if quality:
@@ -470,12 +491,20 @@ def people_facts(persons: dict[str, dict], clubs: dict[str, dict], squad_to_club
             stations_by_person[s.person].append(s)
         else:
             out.counts["dewiki_rows_person_not_human_or_redirected"] += 1
+    rows_by_person: dict[str, list[PlayerRow]] = defaultdict(list)
+    for r in player_rows:
+        if r.person in birth_years:
+            rows_by_person[r.person].append(r)
+        else:
+            out.counts["dewiki_player_rows_person_not_human_or_redirected"] += 1
 
     in_scope: set[str] = set()
     kept_people: set[str] = set()
-    for pid in sorted(set(candidate) | set(stations_by_person)):
+    for pid in sorted(set(candidate) | set(stations_by_person) | set(rows_by_person)):
         facts = _merge_coaches(candidate.get(pid, []), out)
         facts += _dewiki_coach_facts(pid, facts, stations_by_person.get(pid, []), deferred, scope, out)
+        facts += _dewiki_player_facts(pid, facts, unproven, rows_by_person.get(pid, []),
+                                      out_of_window.get(pid, {}), scope, out, unreadable_rows)
         if not facts:
             continue
         kept_people.add(pid)
@@ -494,7 +523,8 @@ def people_facts(persons: dict[str, dict], clubs: dict[str, dict], squad_to_club
                    "people_dropped_by_dewiki_rows" if reasons["deferred_to_dewiki"] else
                    "people_dropped_ended_before_window")
             out.counts[key] += 1
-    out.counts["people_found_no_link"] = len(birth_years) - len(reasons_by_person.keys() | stations_by_person.keys())
+    out.counts["people_found_no_link"] = len(birth_years) - len(
+        reasons_by_person.keys() | stations_by_person.keys() | rows_by_person.keys())
     out.counts["people_only_from_dewiki"] = len(in_scope - reasons_by_person.keys())
 
     for pid in sorted(in_scope):
@@ -535,12 +565,30 @@ def _dewiki_coach_facts(person: str, kept: list[FactRow], stations: list[CoachSt
       (decided by T, 2026-11-11): Wikidata's "coach of" doesn't distinguish assistants.
     """
     new: list[FactRow] = []
+    taken_refs: set[str] = set()
     wd_spells = [f for f in kept if f.predicate == "coached"]
     for club in sorted({s.club for s in stations}):
         here = [s for s in stations if s.club == club]
         heads = [s for s in here if s.role != "other"]
         in_window = [s for s in heads if _station_in_window(s, scope)]
         links = deferred.get((person, club), [])
+        for f in wd_spells:
+            # Rule 2: a Wikidata spell with a start but no end takes the end year of the row that
+            # starts in the same year (or within one).
+            if f.object != club or f.start_year is None or f.end_year is not None:
+                continue
+            near = [s for s in in_window if abs(s.start - f.start_year) <= 1]
+            if any(s.end is None for s in near):
+                continue        # an open row at this club confirms the spell as current: never close it
+            match = sorted((s for s in near if s.end >= f.start_year),
+                           key=lambda s: (abs(s.start - f.start_year), s.start))
+            if match:
+                s = match[0]
+                f.end_year, f.date_quality = s.end, "dated"
+                f.qualifiers["dewiki_filled"] = {"end_year": s.end, "page": s.page, "rev": s.rev_id, "row": s.row,
+                                                 "role": s.role}
+                out.counts["coach_end_year_filled"] += 1
+                out.stats["coach_end_year_filled"].append((person, club, f.source_ref, s.end, s.row))
         for s in in_window:
             twin = next((f for f in wd_spells if f.object == club and _station_overlaps(f, s)), None)
             if twin is not None:
@@ -556,8 +604,13 @@ def _dewiki_coach_facts(person: str, kept: list[FactRow], stations: list[CoachSt
             if links:
                 quals["wikidata_links"] = links
             out.counts["dewiki_rows_dating_wikidata_link" if links else "dewiki_rows_only_source"] += 1
+            # Keyed on page, club, start and role only: closing a spell later keeps the same fact.
+            ref = f"dewiki:{s.page_id}:coached:{club}:{s.start}:{s.role}"
+            while ref in taken_refs:
+                ref += "+"
+            taken_refs.add(ref)
             new.append(FactRow(
-                source_ref=f"dewiki:{s.page_id}:coached:{club}:{s.start}-{s.end or ''}:{s.role}",
+                source_ref=ref,
                 subject=person, predicate="coached", object=club, start_year=s.start, end_year=s.end,
                 date_quality="dated" if s.end is not None else "open_ended", qualifiers=quals, source="dewiki"))
         if links:
@@ -572,6 +625,171 @@ def _dewiki_coach_facts(person: str, kept: list[FactRow], stations: list[CoachSt
                 kept.remove(f)
                 out.stats["coach_spells_dewiki_says_other_role"].append(
                     (person, club, [f.start_year, f.end_year], [s.row for s in here if _station_overlaps(f, s)]))
+    return new
+
+
+def _row_ref(r: PlayerRow) -> dict:
+    return {"page": r.page, "rev": r.rev_id, "row": r.row, "role": r.role}
+
+
+def _row_in_window(r: PlayerRow, scope: Scope) -> bool:
+    return r.end >= scope.start_year if r.end is not None else r.start >= scope.start_year
+
+
+def _row_overlaps(start: int | None, end: int | None, r: PlayerRow) -> bool:
+    return (start or 0) <= (r.end if r.end is not None else 9999) and r.start <= (end if end is not None else 9999)
+
+
+def _dewiki_player_facts(person: str, kept: list[FactRow], unproven: dict[str, str], rows: list[PlayerRow],
+                         out_of_window: dict[str, list[tuple[int | None, int | None]]], scope: Scope,
+                         out: Extraction, unreadable: set = frozenset()) -> list[FactRow]:
+    """Reconciles one person's infobox career rows with their Wikidata played_for stints, club by club.
+
+    Rows are first_team and loan ("senior": playing for the club), reserve and youth. Wikidata's years
+    win wherever both have them. `unproven` holds the stints whose own dates don't prove the window
+    (kept only because the person has rows at that club). Counted as players_rule1 ... players_rule7:
+
+    1. An unproven Wikidata link that no row of the same start year confirms is replaced by the
+       senior rows in the window (source dewiki, the link ids kept on them).
+    2. A stint with a start but no end takes the end year of the senior row that starts in the same
+       year (or within one), tagged `dewiki_filled`; an open row confirms the spell as current.
+    3. A stint without apps takes the apps (and goals) of the one senior row overlapping it.
+    4. A stint that only reserve and/or youth rows overlap is dropped.
+    5. A senior row in the window that no Wikidata stint at the club overlaps becomes a fact.
+    6. A stint overlapping a senior row with different years keeps its years and the row in qualifiers.
+    7. No rows at the club: unchanged.
+
+    A person with a senior row at the club that couldn't be read (`unreadable`) never loses a stint
+    there to rule 4.
+    """
+    new: list[FactRow] = []
+    taken: set[str] = set()
+    wd_all = [f for f in kept if f.predicate == "played_for"]
+    for club in sorted({r.club for r in rows} | {f.object for f in wd_all}):
+        wd = [f for f in wd_all if f.object == club]
+        here = [r for r in rows if r.club == club]
+        if not here:
+            out.counts["players_rule7_unchanged_no_dewiki_rows"] += len(wd)
+            continue
+        senior = [r for r in here if r.role in SENIOR_ROLES]
+
+        # Rule 2: end years.
+        confirmed: set[str] = set()
+        for f in wd:
+            if f.start_year is None or f.end_year is not None:
+                continue
+            near = [r for r in senior if abs(r.start - f.start_year) <= 1]
+            open_rows = [r for r in near if r.end is None]
+            if open_rows:
+                # An open current row confirms the spell as current: never close it with a loan's end.
+                f.qualifiers.setdefault("dewiki", []).append(_row_ref(open_rows[0]))
+                confirmed.add(f.source_ref)
+                out.counts["players_rule2_open_spell_confirmed_current"] += 1
+                continue
+            ended = sorted((r for r in near if r.end >= f.start_year),
+                           key=lambda r: (abs(r.start - f.start_year), r.start))
+            if ended:
+                r = ended[0]
+                f.end_year, f.date_quality = r.end, "dated"
+                f.qualifiers["dewiki_filled"] = {"end_year": r.end, **_row_ref(r)}
+                out.counts["players_rule2_end_year_filled"] += 1
+                out.stats["players_rule2_end_year_filled"].append((person, club, f.source_ref, r.end, r.row))
+
+        # Unproven links: resolved by the fill above, replaced by rows (rule 1), or dropped.
+        links: list[str] = []
+        for f in list(wd):
+            if f.source_ref not in unproven:
+                continue
+            if f.source_ref in confirmed or (f.end_year is not None and f.end_year >= scope.start_year
+                                              and "dewiki_filled" in f.qualifiers):
+                out.counts["players_unproven_link_proven_by_dewiki_row"] += 1
+            elif f.end_year is not None and "dewiki_filled" in f.qualifiers:
+                out.counts["players_unproven_link_ended_before_window"] += 1
+                out.stats["players_unproven_link_ended_before_window"].append((person, club, f.source_ref))
+                kept.remove(f)
+                wd.remove(f)
+            else:
+                links.append(f.source_ref)
+                kept.remove(f)
+                wd.remove(f)
+
+        # Rules 3, 4, 6 on the remaining stints.
+        for f in list(wd):
+            over = [r for r in senior if _row_overlaps(f.start_year, f.end_year, r)]
+            if over:
+                if f.apps is None:
+                    with_apps = [r for r in over if r.apps is not None]
+                    if len(over) == 1 and with_apps:
+                        f.apps = with_apps[0].apps
+                        filled = {"apps": f.apps}
+                        if f.goals is None and with_apps[0].goals is not None:
+                            f.goals = with_apps[0].goals
+                            filled["goals"] = f.goals
+                        f.qualifiers["dewiki_apps_filled"] = {**filled, **_row_ref(with_apps[0])}
+                        out.counts["players_rule3_apps_filled"] += 1
+                    elif len(over) > 1 and with_apps:
+                        out.counts["players_rule3_skipped_several_rows"] += 1
+                        out.stats["players_rule3_skipped_several_rows"].append(
+                            (person, club, f.source_ref, [r.row for r in over]))
+                f.qualifiers.setdefault("dewiki", []).extend(
+                    _row_ref(r) for r in over if _row_ref(r) not in f.qualifiers.get("dewiki", []))
+                if not any((r.start, r.end) == (f.start_year, f.end_year) for r in over):
+                    out.counts["players_rule6_years_disagree"] += 1
+                    out.stats["players_rule6_years_disagree"].append(
+                        (person, club, [f.start_year, f.end_year], [r.row for r in over]))
+            elif any(_row_overlaps(f.start_year, f.end_year, r) for r in here) and (person, club) in unreadable:
+                out.counts["players_rule4_kept_unreadable_senior_row"] += 1
+                out.stats["players_rule4_kept_unreadable_senior_row"].append((person, club, f.source_ref))
+            elif any(_row_overlaps(f.start_year, f.end_year, r) for r in here):
+                out.counts["players_rule4_stint_dropped_reserve_youth_only"] += 1
+                out.stats["players_rule4_stint_dropped_reserve_youth_only"].append(
+                    (person, club, f.source_ref, [f.start_year, f.end_year], f.date_quality,
+                     [r.row for r in here if _row_overlaps(f.start_year, f.end_year, r)]))
+                kept.remove(f)
+                wd.remove(f)
+            else:
+                out.counts["players_rule7_unchanged_no_overlapping_row"] += 1
+
+        # Rules 1 and 5: senior rows in the window that no remaining stint overlaps.
+        spans = [(f.start_year, f.end_year) for f in wd] + out_of_window.get(club, [])
+        added = 0
+        for r in sorted(senior, key=lambda r: (r.start, r.role != "loan", r.end or 9999)):
+            if not _row_in_window(r, scope):
+                continue
+            if any(_row_overlaps(a, b, r) for a, b in spans):
+                if not any(_row_overlaps(f.start_year, f.end_year, r) for f in wd):
+                    out.counts["players_rule5_blocked_by_wikidata_stint_before_window"] += 1
+                    out.stats["players_rule5_blocked_by_wikidata_stint_before_window"].append(
+                        (person, club, r.row, out_of_window.get(club)))
+                continue
+            # Keyed on page, club and start only: closing a current row or changing its loan marker
+            # keeps the same fact (end, apps and role are updatable columns); a genuine collision
+            # (a loan and a permanent row starting the same year) gets a suffix, the loan first.
+            ref = f"dewiki:{r.page_id}:played_for:{club}:{r.start}"
+            while ref in taken:
+                ref += "+"
+            taken.add(ref)
+            quals = {"source_property": "dewiki_infobox_player", "role": r.role, "dewiki_page": r.page,
+                     "dewiki_rev": r.rev_id, "row": r.row}
+            if links:
+                quals["wikidata_links"] = links
+            key = "players_rule1_rows_replacing_unproven_link" if links else "players_rule5_rows_only_source"
+            out.counts[key] += 1
+            out.stats[key].append((person, club, r.row, links))
+            added += 1
+            new.append(FactRow(source_ref=ref, subject=person, predicate="played_for", object=club,
+                               start_year=r.start, end_year=r.end, apps=r.apps, goals=r.goals,
+                               date_quality="dated" if r.end is not None else "open_ended",
+                               qualifiers=quals, source="dewiki"))
+        if links:
+            out.counts["players_rule1_links_replaced" if added else "players_unproven_links_dropped"] += len(links)
+            if not added:
+                in_window = [r for r in senior if _row_in_window(r, scope)]
+                why = ("reserve_youth_rows_only" if not senior else
+                       "senior_rows_before_window" if not in_window else "senior_rows_covered_by_wikidata_stint")
+                out.counts[f"players_unproven_links_dropped:{why}"] += len(links)
+                out.stats[f"players_unproven_links_dropped_{why}"].append(
+                    (person, club, links, [r.row for r in here]))
     return new
 
 

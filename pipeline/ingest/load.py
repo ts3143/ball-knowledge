@@ -3,7 +3,8 @@
 Rows are keyed on natural keys (wikidata_id, (entity_id, alias_norm), source_ref, (entity, wiki,
 month)), so re-running never duplicates. Facts and aliases this run didn't produce are marked
 stale; nothing is deleted. The Bundesliga ingest is the only writer of these tables for now, so
-"not seen this run" means "gone from Wikidata or out of scope". Step 7 will scope this per
+"not seen this run" means "gone from Wikidata or German Wikipedia (coach and player
+tables, source dewiki), or out of scope". Step 7 will scope this per
 competition.
 """
 
