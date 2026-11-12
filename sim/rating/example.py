@@ -1,4 +1,8 @@
-"""`python -m rating example`: the engine in plain language. Placeholder ids and names only."""
+"""`python -m rating example`: the engine in plain language. Placeholder ids and names only.
+
+The example runs on fixed demo parameters (the golden file's, with a demo seed slope), not on tunables.toml:
+it documents the engine, and lib/glicko2/example.expected.ts holds its output byte for byte for the TS port.
+"""
 
 import dataclasses
 from datetime import date, timedelta
@@ -7,7 +11,7 @@ from .core import Opponent, rate_period
 from .display import club_visible, is_uncertain, rd_now
 from .engine import replay
 from .golden import GLICKMAN, golden_params
-from .params import Params
+from .params import SeedParams
 from .types import CLUB, COMPETITION, SPORT, Game, Prompt, State
 
 NAMES = {(SPORT, "football"): "Football (sport)", (COMPETITION, 1): "Competition A", (CLUB, 101): "Club A"}
@@ -18,7 +22,7 @@ DIVES = [[10, 25, 0, 10, 50, 10, 25], [25, 50, 10, 75, 25, 10, 0], [50, 75, 25, 
 DEMO_SEED_SLOPE = 30.0  # demo only: spreads the prompts' starting ratings so the opponents differ
 
 
-def glickman(params: Params) -> None:
+def glickman() -> None:
     g = GLICKMAN
     i = g["inputs"]
     out = rate_period(i["rating"], i["rd"], i["volatility"], 0, [Opponent(*o) for o in i["opponents"]],
@@ -33,7 +37,7 @@ def glickman(params: Params) -> None:
     print(f"    (volatility step converged in {out.iterations} iterations)")
 
 
-def worked_replay(params: Params) -> None:
+def worked_replay() -> None:
     d0 = date(2026, 1, 1)
     days = [d0, d0 + timedelta(days=1), d0 + timedelta(days=8), d0 + timedelta(days=9), d0 + timedelta(days=10)]
     # Dives 1-2: no club tags. Dive 3: six of seven prompts tag Club A, dives 4-5: all seven do.
@@ -45,8 +49,8 @@ def worked_replay(params: Params) -> None:
             tagged = k < club_prompts.get(d, 0)
             prompts.append(Prompt(pid, 1, (101,) if tagged else (), {"log_recall_mass": -2.0 + 0.5 * (k % 5)}))
             games.append(Game(1, days[d], 1, pid, points[k]))
-    slopes = {k: v or DEMO_SEED_SLOPE for k, v in params.seed.coefficients.items()}
-    demo = dataclasses.replace(params, seed=dataclasses.replace(params.seed, coefficients=slopes))
+    demo = dataclasses.replace(golden_params(),
+                               seed=SeedParams(1500.0, 350.0, {"log_recall_mass": DEMO_SEED_SLOPE}))
     result = replay(prompts, games, demo)
 
     print()
@@ -89,6 +93,6 @@ def worked_replay(params: Params) -> None:
               f"{'uncertain' if is_uncertain(st, later, demo) else 'settled'}{vis}")
 
 
-def example(params: Params) -> None:
-    glickman(params)
-    worked_replay(params)
+def example() -> None:
+    glickman()
+    worked_replay()
