@@ -1,0 +1,51 @@
+# The fake world of the simulation (step 4): assumptions about players, not product tunables (those are in the
+# root tunables.toml). Committed, so a run is reproducible from the repo; `--set world.key=value` overrides.
+
+[world]
+# Players and dive dates of the population scenario. Dates x prompts_per_dive (tunables [dive]) prompts are
+# played, in a seeded order, so there must be at least that many prompts in the snapshot.
+players = 1000
+dates = 61
+
+# Knowledge theta ~ N(0, theta_sd): general Bundesliga knowledge, on the rarity score scale.
+theta_sd = 1.5
+
+# Favourite clubs: the share of players with 0, 1 and 2 favourites, drawn in proportion to how often a club is
+# tagged on prompts. The affinity bonus is uniform in [affinity_min, affinity_max], added to theta on a prompt
+# tagged with that club (the largest bonus counts).
+favourites_share = [0.25, 0.60, 0.15]
+affinity_min = 0.5
+affinity_max = 1.5
+
+# Strategy lambda = sigmoid(lambda_expert_slope * theta/theta_sd + N(0, lambda_noise_sd)): 0 picks the obvious
+# answer, 1 the rarest known one. Experts lean towards rare answers.
+lambda_expert_slope = 1.0
+lambda_noise_sd = 1.0
+
+# A share of players drift in knowledge, linearly over the season, by N(0, drift_sd).
+drift_share = 0.15
+drift_sd = 0.75
+
+# Schedule cohorts (shares sum to 1; the last one takes the remainder).
+# daily: every date. irregular: plays a date with probability p ~ U(irregular_p_min, irregular_p_max).
+# newcomer: joins on a random date (not in the last newcomer_min_dates_left) and then plays with
+# newcomer_play_probability. lapse: daily, except for one gap of lapse_gap_min..lapse_gap_max dates.
+cohort_shares = { daily = 0.35, irregular = 0.35, newcomer = 0.15, lapse = 0.15 }
+irregular_p_min = 0.15
+irregular_p_max = 0.70
+newcomer_play_probability = 0.9
+newcomer_min_dates_left = 8
+lapse_gap_min = 14
+lapse_gap_max = 30
+
+# Answer model. A player knows answer a with probability sigmoid(theta_eff + score_a - c0); c0 is solved so a
+# median player (theta 0, no favourite, mid strategy) gives a valid answer on this share of prompts.
+median_valid_rate = 0.70
+# A wrong answer (instead of a blank or a valid one): wrong_base + wrong_scale * lambda * (1 - sigmoid(theta/theta_sd)).
+wrong_base = 0.05
+wrong_scale = 0.15
+
+# The model-wrong world: the stored score of each answer is perturbed (tiers and points stay as stored).
+[world.model_wrong]
+answer_noise_sd = 1.0
+template_noise_sd = 0.5

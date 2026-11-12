@@ -65,22 +65,27 @@ def parse_override(text: str) -> tuple[list[str], object]:
     return [part.strip() for part in key.split(".")], value
 
 
-def load_tunables(overrides: list[str] | None = None, path: Path = TUNABLES_PATH) -> dict:
-    """tunables.toml as a dict, with `--set key=value` overrides applied. An override must name an existing key,
-    so a typo fails instead of silently changing nothing."""
-    with open(path, "rb") as f:
-        tunables = tomllib.load(f)
-    for text in overrides or []:
+def apply_overrides(tree: dict, overrides: list[str]) -> dict:
+    """`--set key=value` overrides applied in place. An override must name an existing key, so a typo fails
+    instead of silently changing nothing."""
+    for text in overrides:
         parts, value = parse_override(text)
-        node = tunables
+        node = tree
         for part in parts[:-1]:
             if not isinstance(node, dict) or part not in node:
-                raise KeyError(f"unknown tunable {'.'.join(parts)}")
+                raise KeyError(f"unknown key {'.'.join(parts)}")
             node = node[part]
         if not isinstance(node, dict) or parts[-1] not in node:
-            raise KeyError(f"unknown tunable {'.'.join(parts)}")
+            raise KeyError(f"unknown key {'.'.join(parts)}")
         node[parts[-1]] = value
-    return tunables
+    return tree
+
+
+def load_tunables(overrides: list[str] | None = None, path: Path = TUNABLES_PATH) -> dict:
+    """tunables.toml as a dict, with `--set key=value` overrides applied."""
+    with open(path, "rb") as f:
+        tunables = tomllib.load(f)
+    return apply_overrides(tunables, overrides or [])
 
 
 def load_params(overrides: list[str] | None = None) -> Params:

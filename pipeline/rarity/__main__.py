@@ -9,6 +9,7 @@
     uv run python -m rarity check                         # stored prompts recompute exactly (exit 1 if not)
     uv run python -m rarity gut-sheet                     # pipeline/data/calibration/gut.toml for T to fill in
     uv run python -m rarity gut-sheet --force             # overwrite an existing sheet
+    uv run python -m rarity export-sim                    # read-only snapshot for the simulation: sim/data/prompts-<date>.json
 """
 
 import argparse
@@ -19,6 +20,7 @@ from ingest.config import load_settings
 from prompts.templates import TEMPLATES
 
 from .check import check
+from .export_sim import export_sim
 from .preview import gut_sheet, preview
 
 
@@ -36,6 +38,7 @@ def main() -> None:
                       help="summary numbers for every combination, e.g. alpha=0.6,0.8 max_bandwagon_answer_share=0.3,0.4")
     prev.add_argument("--gut", action="store_true", help="compare the model with T's top and bottom lists (gut.toml)")
     commands.add_parser("check", help="recompute every stored prompt from its stored features and params")
+    commands.add_parser("export-sim", help="write the read-only prompt snapshot the simulation reads (sim/data/)")
     sheet = commands.add_parser("gut-sheet", help="write the sheet T fills in before seeing any tiers")
     sheet.add_argument("--force", action="store_true", help="overwrite an existing gut.toml")
     args = parser.parse_args()
@@ -48,6 +51,8 @@ def main() -> None:
                     args.limit, args.rows, args.summary_only, args.all_statuses, args.sweep, args.gut)
         elif args.command == "check":
             raise SystemExit(1 if check(conn) else 0)
+        elif args.command == "export-sim":
+            export_sim(conn)
         else:
             print(gut_sheet(conn, settings.tunables, args.force))
 
