@@ -50,7 +50,7 @@ def rmse(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.sqrt(np.mean((a - b) ** 2)))
 
 
-def propose(data: SeedData) -> dict:
+def propose(data: SeedData, min_template_prompts: int = 10) -> dict:
     """The proposed seed map and the numbers behind the choice."""
     models = {"intercept only": ()}
     models[BASE_FEATURE] = (BASE_FEATURE,)
@@ -76,13 +76,15 @@ def propose(data: SeedData) -> dict:
     resid = data.y_true - x @ beta
     offsets = {}
     for t in sorted(set(data.templates)):
-        mean = float(resid[np.array(data.templates) == t].mean())
-        if abs(mean) > OFFSET_THRESHOLD:
+        sel = np.array(data.templates) == t
+        mean = float(resid[sel].mean())
+        if abs(mean) > OFFSET_THRESHOLD and sel.sum() >= min_template_prompts:
             offsets[t] = mean
     cv_wrong = chosen["cv_rmse_wrong"]
     return {"table": table, "base_cv_rmse_true": base_cv, "best_extra": best["model"], "best_extra_cv_rmse_true": best["cv_rmse_true"],
             "chosen": chosen["model"], "intercept": float(beta[0]), "coefficients": dict(zip(feats, map(float, beta[1:]), strict=True)),
-            "template_offsets": offsets, "template_prompts": {t: int(sum(x == t for x in data.templates)) for t in sorted(set(data.templates))},
+            "template_offsets": offsets, "min_template_prompts": min_template_prompts,
+            "template_prompts": {t: int(sum(x == t for x in data.templates)) for t in sorted(set(data.templates))},
             "template_mean_residuals": {t: float(resid[np.array(data.templates) == t].mean())
                                                                       for t in sorted(set(data.templates))},
             "cv_rmse_wrong_world": cv_wrong, "rd": max(RD_FLOOR, cv_wrong), "rd_floor_applied": cv_wrong < RD_FLOOR,

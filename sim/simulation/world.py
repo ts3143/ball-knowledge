@@ -31,6 +31,15 @@ def load_scenarios(overrides: list[str] | None = None, path: Path = WORLD_PATH) 
     return apply_overrides({"scenarios": scenarios}, overrides or [])["scenarios"]
 
 
+def load_section(name: str, overrides: list[str] | None = None, path: Path = WORLD_PATH) -> dict:
+    """A top-level table of world.toml other than [world] and [scenarios] (sweep, seed_fit, tiers_sensitivity)."""
+    from rating.params import apply_overrides
+
+    with open(path, "rb") as f:
+        section = tomllib.load(f)[name]
+    return apply_overrides({name: section}, overrides or [])[name]
+
+
 def streams(seed: int) -> dict[str, np.random.Generator]:
     """Independent random streams, so changing e.g. the answers' draws never changes the population."""
     return {name: np.random.default_rng(s) for name, s in zip(STREAMS, np.random.SeedSequence(seed).spawn(len(STREAMS)))}

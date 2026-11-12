@@ -4,6 +4,8 @@
     uv run python -m simulation world --world model-wrong --seed 2
     uv run python -m simulation run --world model-true --scenario population
     uv run python -m simulation run --world model-wrong --scenario testers --seed 1 --set glicko.tau=0.8
+    uv run python -m simulation sweep                        # tune tau, child RD and game weight; tables for T; recommended tunables
+    uv run python -m simulation tiers                        # tier sensitivity only
     uv run python -m simulation fit-seed                     # the seed fit, then both worlds and scenarios before/after
     uv run python -m simulation world --set world.players=200 --set tiers.points=[10,25,50,75,100]
 """
@@ -15,6 +17,7 @@ from pathlib import Path
 from .commands import default_workers, fit_seed_command, run_command
 from .runner import OUTPUT_DIR, world_report
 from .snapshot import SnapshotError, latest_snapshot_path
+from .tuning import sweep_command, tiers_command
 from .world import WORLDS
 
 
@@ -32,7 +35,9 @@ def main() -> None:
     run.add_argument("--world", choices=WORLDS, default="model-true")
     run.add_argument("--scenario", choices=("population", "testers"), default="population")
     fit = commands.add_parser("fit-seed", help="fit the prompt seed map, then run both worlds and scenarios with and without it")
-    for p in (run, fit):
+    sweep = commands.add_parser("sweep", help="the Glicko grid, the marker and club tables, tier sensitivity and the recommended tunables")
+    tiers = commands.add_parser("tiers", help="tier sensitivity only: variants of the tier points and cutoffs")
+    for p in (run, fit, sweep, tiers):
         p.add_argument("--seed", type=int, default=1, help="first seed; a scenario uses seed, seed + 1, ...")
         p.add_argument("--snapshot", type=Path)
         p.add_argument("--out-dir", type=Path, default=OUTPUT_DIR)
@@ -45,6 +50,11 @@ def main() -> None:
         if args.command == "run":
             out = run_command(args.snapshot or latest_snapshot_path(), args.world, args.scenario, args.seed, args.overrides,
                               args.out_dir, args.workers)
+            print(f"wrote {out} in {time.time() - started:.1f}s")
+            return
+        if args.command in ("sweep", "tiers"):
+            fn = sweep_command if args.command == "sweep" else tiers_command
+            out = fn(args.snapshot or latest_snapshot_path(), args.seed, args.overrides, args.out_dir, args.workers)[0]
             print(f"wrote {out} in {time.time() - started:.1f}s")
             return
         if args.command == "fit-seed":

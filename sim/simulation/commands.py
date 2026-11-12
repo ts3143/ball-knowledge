@@ -17,17 +17,26 @@ from .report_run import write_outputs
 from .runner import git_commit
 from .seedfit import SeedData, propose, tunables_block, with_seed
 from .snapshot import check_retiering, load_snapshot
-from .world import WORLDS, load_scenarios, load_world_config
+from .world import WORLDS, load_scenarios, load_section, load_world_config
 
 CREATABLE = ("glicko.prompt_seed.coefficients.", "glicko.prompt_seed.template_offsets.")
 FIT_SEEDS = 3  # population seeds the seed map is fitted on
 
 
+SECTIONS = ("sweep", "seed_fit", "tiers_sensitivity")
+
+
 def split_overrides(overrides: list[str]) -> tuple[list[str], list[str], list[str]]:
+    """(tunables, world, scenarios) overrides; the other config sections' overrides are read with `section_overrides`."""
     world = [o for o in overrides if o.startswith("world.")]
     scen = [o for o in overrides if o.startswith("scenarios.")]
-    rest = [o for o in overrides if o not in world and o not in scen]
+    other = [o for o in overrides if o.startswith(tuple(f"{s}." for s in SECTIONS))]
+    rest = [o for o in overrides if o not in world and o not in scen and o not in other]
     return rest, world, scen
+
+
+def section_overrides(overrides: list[str], name: str) -> list[str]:
+    return [o for o in overrides if o.startswith(f"{name}.")]
 
 
 def load_sim_tunables(overrides: list[str]) -> dict:
@@ -126,7 +135,7 @@ def fit_seed_command(snapshot_path: Path, seed: int, overrides: list[str], out_d
     truth = {w: run_tasks(make_tasks(snapshot_path, w, "population", seed, cfg, fit_scen, tunables, ()), workers) for w in WORLDS}
     print(f"truth for the seed fit: {time.time() - started:.1f}s")
     data = seed_data(snapshot, truth)
-    fit = propose(data)
+    fit = propose(data, int(load_section("seed_fit", section_overrides(overrides, "seed_fit"))["min_template_prompts"]))
     proposed = with_seed(tunables, fit)
     configs = (("current", tunables), ("proposed", proposed))
     results = {}

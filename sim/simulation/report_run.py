@@ -139,10 +139,8 @@ def report_text(meta: dict, results: dict, fit: dict | None) -> tuple[str, dict]
                    [[r["model"], f0(r["in_sample_rmse_true"]), f0(r["cv_rmse_true"]), f0(r["cv_rmse_wrong"])] for r in fit["table"]])
         L += ["", (f"Rule: ship log_recall_mass alone unless another feature cuts its CV RMSE ({f0(fit['base_cv_rmse_true'])}) by 15%. The best "
               f"addition is {fit['best_extra']} at {f0(fit['best_extra_cv_rmse_true'])}, so the chosen model is **{fit['chosen']}**."),
-              "Mean residual of the chosen fit by template, with its number of prompts (an offset is added only above 50): "
+              "Mean residual of the chosen fit by template, with its number of prompts (an offset is added only above 50, and for templates with at least " + str(fit["min_template_prompts"]) + " prompts): "
               + ", ".join(f"{t} {r:+.0f} (n={fit['template_prompts'][t]})" for t, r in fit["template_mean_residuals"].items()) + ".",
-              *([f"Note: an offset rests on a template's own prompts; {t} has {fit['template_prompts'][t]}." for t in fit["template_offsets"]
-                 if fit["template_prompts"][t] < 5]),
               f"seed_rd = the CV RMSE in the wrong world ({f0(fit['cv_rmse_wrong_world'])}), floor 60: **{f0(fit['rd'])}**.", "",
               "Proposed (not written to tunables.toml):", "", "```toml", tunables_block(fit), "```", ""]
     L += ["## What the prompt ratings look like", "",

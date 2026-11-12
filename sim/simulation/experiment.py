@@ -8,6 +8,7 @@ from pathlib import Path
 
 import numpy as np
 
+from rating.core import VolatilityError
 from rating.params import Params
 
 from .metrics import REPORT_DATES, run_metrics
@@ -15,6 +16,7 @@ from .oracle import fit_oracle, spearman
 from .play import play_world, sample_games, true_bk_matrix
 from .runner import club_true_bk
 from .snapshot import load_snapshot
+from .tiers import retier
 from .world import build_world, expected_matrices, streams
 
 
@@ -28,6 +30,8 @@ class Task:
     prompts_per_dive: int
     points_scale: float  # points that make a result of 1.0
     configs: tuple  # ((label, tunables), ...): each is replayed on the same games; empty = oracle truth only
+    tier_variant: object = None  # a tiers.TierVariant: re-tier the snapshot before anything else
+    analysis: object = None  # what to report besides the pass bars (metrics.DEFAULT_ANALYSIS keys)
 
 
 @functools.lru_cache(maxsize=2)
@@ -37,11 +41,16 @@ def cached_snapshot(path: str):
 
 def run_task(task: Task) -> dict:
     snapshot = cached_snapshot(task.snapshot_path)
+    if task.tier_variant is not None:
+        snapshot, _ = retier(snapshot, task.tier_variant)
     full = task.scenario == "population"
     ppd, scale = task.prompts_per_dive, task.points_scale
     world = build_world(snapshot, task.cfg, ppd, task.seed, task.world_name)
     expected = expected_matrices(world, snapshot, scale)
     oracle = fit_oracle(expected.result)
+    tier_points = np.array([snapshot.points[snapshot.tier == k].mean() if (snapshot.tier == k).any() else 0.0 for k in range(1, 6)])
+    by_tier = expected.tier_mass.sum(axis=(0, 1)) * tier_points
+    ykb_share = float(by_tier[4] / by_tier.sum())  # share of all expected points that comes from You Know Ball answers
     out = {"seed": task.seed, "prompt_ids": [int(snapshot.prompt_id[j]) for j in world.used],
            "true_rating": [float(x) for x in oracle.prompt_rating], "metrics": {}}
     if not task.configs:
@@ -57,9 +66,18 @@ def run_task(task: Task) -> dict:
     for label, tunables in task.configs:
         params = Params.from_tunables(tunables)
         offsets = tunables["glicko"]["prompt_seed"].get("template_offsets", {})
-        rep = play_world(world, snapshot, games, params, offsets)
+        try:
+            rep = play_world(world, snapshot, games, params, offsets)
+        except (ArithmeticError, VolatilityError) as e:
+            # A parameter combination whose volatility or ratings blow up (a game weight far above 1 with a large tau does this):
+            # recorded, never hidden, and such a combination is infeasible.
+            out["metrics"][label] = {"engine.diverged": 1.0}
+            out.setdefault("errors", {})[label] = f"{type(e).__name__}: {e}"
+            continue
         out["metrics"][label] = run_metrics(world, snapshot, oracle.prompt_rating, true_bk, dates, validity, oracle.rmse,
-                                            club_true, clubs, games, rep, tunables, full)
+                                            club_true, clubs, games, rep, tunables, full, task.analysis)
+        out["metrics"][label]["engine.diverged"] = 0.0
+        out["metrics"][label]["tiers.ykb_points_share"] = ykb_share
     return out
 
 

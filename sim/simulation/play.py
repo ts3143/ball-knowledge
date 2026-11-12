@@ -88,6 +88,7 @@ class Replayed:
     rating: np.ndarray  # (m, T) nan before the first dive
     rd: np.ndarray  # (m, T) RD as displayed on that date (idle growth applied), nan before the first dive
     rating_before: np.ndarray  # (m, T) rating at the start of a dive, nan on dates not played
+    rd_before: np.ndarray  # (m, T) RD at the start of a dive (idle growth applied), nan on dates not played
     club_rows: dict[tuple[int, int], list[tuple[int, int, float, float]]]  # (player, club) -> (date, games, rating, rd)
     prompt_seed: np.ndarray  # (U,) in world.used order
     prompt_rating: np.ndarray  # (U,) after the date-close update
@@ -107,7 +108,7 @@ def play_world(world: World, snapshot: Snapshot, games: GameArrays, params: Para
     result = replay(prompts, rated, params)
     m, T = world.n_players, world.n_dates
     played = np.zeros((m, T), dtype=bool)
-    r_after, rd_after, vol_after, r_before = (np.full((m, T), np.nan) for _ in range(4))
+    r_after, rd_after, vol_after, r_before, rd_before = (np.full((m, T), np.nan) for _ in range(5))
     club_rows: dict[tuple[int, int], list] = {}
     for h in result.history:
         t = (h.date - D0).days
@@ -115,6 +116,7 @@ def play_world(world: World, snapshot: Snapshot, games: GameArrays, params: Para
             played[h.user_id, t] = True
             r_after[h.user_id, t], rd_after[h.user_id, t] = h.rating_after, h.rd_after
             vol_after[h.user_id, t], r_before[h.user_id, t] = h.volatility_after, h.rating_before
+            rd_before[h.user_id, t] = h.rd_before
         elif h.scope_type == CLUB:
             club_rows.setdefault((h.user_id, h.scope_id), []).append((t, h.games, h.rating_after, h.rd_after))
     idx = np.where(played, np.arange(T)[None, :], -1)
@@ -127,6 +129,6 @@ def play_world(world: World, snapshot: Snapshot, games: GameArrays, params: Para
     idle = np.arange(T)[None, :] - last - 1
     rd = np.where(seen, idle_rd_array(rd_last, vol_last, idle, params.initial_rd), np.nan)
     ps = [result.prompts[int(snapshot.prompt_id[j])] for j in world.used]
-    return Replayed(played, rating, rd, r_before, club_rows,
+    return Replayed(played, rating, rd, r_before, rd_before, club_rows,
                     np.array([p.seed_rating for p in ps]), np.array([p.rating for p in ps]),
                     np.array([p.seed_rd for p in ps]), np.array([p.games for p in ps]))

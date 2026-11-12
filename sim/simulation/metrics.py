@@ -8,7 +8,8 @@ import itertools
 
 import numpy as np
 
-from rating.core import SCALE
+from rating.core import SCALE, Opponent, rate_period
+from rating.params import Params
 
 from .oracle import spearman
 from .play import GameArrays, Replayed
@@ -22,7 +23,10 @@ PLACE_BAND = 10.0  # percentile points
 PLACE_STAY = 5  # dives
 PLACE_MIN_DIVES = 15  # players with fewer dives cannot show a placement at 10 and then stay for 5
 NOT_PLACED = 999.0
-CLUB_STEPS = (10, 20, 30)
+CLUB_STEPS = (5, 10, 15, 20, 30)
+# What the sweep reports besides the pass bars (config/world.toml [sweep] overrides these through Task.analysis).
+DEFAULT_ANALYSIS = {"uncertain_rd_thresholds": [110], "uncertain_after_dives": [1, 3, 7, 14], "club_min_prompts": [20],
+                    "lock_games": []}
 MIN_CLUB_PLAYERS = 8
 INFLATION_START = 31  # 1-based date; the slope is taken from here to the last date
 
@@ -88,10 +92,11 @@ def e_pred_deciles(world: World, snapshot, games: GameArrays, rep: Replayed, use
 
 def run_metrics(world: World, snapshot, true_prompt: np.ndarray, true_bk: np.ndarray, bk_dates: list[int], validity: float,
                 fit_rmse: float, club_true: np.ndarray, clubs: list[int], games: GameArrays, rep: Replayed,
-                tunables: dict, full: bool) -> dict:
+                tunables: dict, full: bool, analysis: dict | None = None) -> dict:
     """true_bk: (m, len(bk_dates)) true BK on the 0-based dates `bk_dates`. full=False skips the metrics only the
     population scenario needs."""
     m, T = world.n_players, world.n_dates
+    analysis = {**DEFAULT_ANALYSIS, **(analysis or {})}
     out: dict[str, float] = {"validity.oracle": validity, "oracle.rmse": fit_rmse}
     theta_t = np.stack([world.theta_at(t) for t in range(T)], axis=1)
     true_full = np.full((m, T), np.nan)
@@ -186,12 +191,48 @@ def run_metrics(world: World, snapshot, true_prompt: np.ndarray, true_bk: np.nda
     else:
         out["inflation.per30"] = float("nan")
 
-    club_metrics(world, club_true, clubs, rep, tunables, out)
+    for thr in analysis["uncertain_rd_thresholds"]:
+        flag = rds > thr
+        out[f"unc.t{thr:03d}.share"] = float(flag.mean())
+        out[f"unc.t{thr:03d}.mis_uncertain"] = float(mis[flag].mean()) if flag.any() else float("nan")
+        out[f"unc.t{thr:03d}.mis_settled"] = float(mis[~flag].mean()) if (~flag).any() else float("nan")
+        for k in analysis["uncertain_after_dives"]:
+            rd_k = np.array([rep.rd[i, np.flatnonzero(rep.played[i])[k - 1]] for i in range(m) if rep.played[i].sum() >= k])
+            out[f"unc.k{k:02d}.t{thr:03d}.share"] = float((rd_k > thr).mean()) if len(rd_k) else float("nan")
+    club_metrics(world, club_true, clubs, rep, tunables, analysis["club_min_prompts"], true_full[:, -1], out)
+    if analysis["lock_games"]:
+        lock_metrics(world, snapshot, games, rep, true_prompt, tunables, analysis["lock_games"], out)
     return out
 
 
-def club_metrics(world: World, club_true: np.ndarray, clubs: list[int], rep: Replayed, tunables: dict, out: dict) -> None:
-    visible = tunables["glicko"]["club_rating_min_prompts"]
+def lock_metrics(world: World, snapshot, games: GameArrays, rep: Replayed, true_prompt: np.ndarray, tunables: dict,
+                 ns: list[int], out: dict) -> None:
+    """A prompt's rating after its first n answers (players in id order), against the true rating, over the prompts
+    that have at least n answers."""
+    params = Params.from_tunables(tunables)
+    used_pos = {int(j): u for u, j in enumerate(world.used)}
+    errs: dict[int, list[float]] = {n: [] for n in ns}
+    order = np.argsort(games.prompt, kind="stable")  # stable: players stay in id order within a prompt
+    prompts = games.prompt[order]
+    bounds = np.flatnonzero(np.diff(prompts, prepend=-1, append=-1))
+    for lo, hi in itertools.pairwise(bounds):
+        idx = order[lo:hi]
+        u = used_pos[int(prompts[lo])]
+        opps = [Opponent(rep.rating_before[p, d], rep.rd_before[p, d], 1.0 - pts / params.points_scale)
+                for p, d, pts in zip(games.player[idx], games.date[idx], games.points[idx], strict=True)]
+        for n in ns:
+            if len(opps) >= n:
+                r = rate_period(rep.prompt_seed[u], rep.prompt_rd_seed[u], params.initial_volatility, 0, opps[:n], params)
+                errs[n].append(r.rating - true_prompt[u])
+    for n in ns:
+        e = np.array(errs[n])
+        out[f"lock.n{n:03d}.prompts"] = float(len(e))
+        out[f"lock.n{n:03d}.rmse"] = float(np.sqrt(np.mean(e**2))) if len(e) else float("nan")
+        out[f"lock.n{n:03d}.bias"] = float(e.mean()) if len(e) else float("nan")
+
+
+def club_metrics(world: World, club_true: np.ndarray, clubs: list[int], rep: Replayed, tunables: dict,
+                 visible_steps: list[int], true_overall: np.ndarray, out: dict) -> None:
     cum: dict[tuple[int, int], list[tuple[int, int, float, float]]] = {}
     for key, rows in rep.club_rows.items():
         total, acc = 0, []
@@ -199,32 +240,45 @@ def club_metrics(world: World, club_true: np.ndarray, clubs: list[int], rep: Rep
             total += g
             acc.append((t, total, r, rd))
         cum[key] = acc
-    col = {c: k for k, c in enumerate(clubs)}
-    # first visible club rating of a daily fan (any favourite club), 1-based date
-    first = []
+    # first visible club rating of a daily fan (any favourite club) for each candidate minimum, 1-based date
     daily = np.flatnonzero(world.cohort == COHORTS.index("daily"))
     fans = [i for i in daily if world.favourites[i]]
-    for i in fans:
-        dates = [next((t + 1 for t, total, _, _ in cum.get((int(i), c), []) if total >= visible), None)
-                 for c in world.favourites[i]]
-        dates = [d for d in dates if d is not None]
-        if dates:
-            first.append(min(dates))
     out["clubs.fans_daily"] = float(len(fans))
-    out["clubs.first_visible_share"] = len(first) / len(fans) if fans else float("nan")
-    out["clubs.first_visible_median"] = float(np.median(first)) if first else float("nan")
+    for visible in sorted({*visible_steps, tunables["glicko"]["club_rating_min_prompts"]}):
+        first = []
+        for i in fans:
+            dates = [next((t + 1 for t, total, _, _ in cum.get((int(i), c), []) if total >= visible), None) for c in world.favourites[i]]
+            dates = [d for d in dates if d is not None]
+            if dates:
+                first.append(min(dates))
+        out[f"clubs.v{visible:02d}.share"] = len(first) / len(fans) if fans else float("nan")
+        out[f"clubs.v{visible:02d}.median"] = float(np.median(first)) if first else float("nan")
+    out["clubs.first_visible_share"] = out[f"clubs.v{tunables['glicko']['club_rating_min_prompts']:02d}.share"]
+    out["clubs.first_visible_median"] = out[f"clubs.v{tunables['glicko']['club_rating_min_prompts']:02d}.median"]
+    col = {c: k for k, c in enumerate(clubs)}
     for n in CLUB_STEPS:
-        per_club: dict[int, list[tuple[float, float, float]]] = {}
+        per_club: dict[int, list[tuple[float, float, float, float, float]]] = {}
         for (i, c), rows in cum.items():
-            hit = next(((r, rd) for _, total, r, rd in rows if total >= n), None)
+            hit = next(((t, r, rd) for t, total, r, rd in rows if total >= n), None)
             if hit is not None:
-                per_club.setdefault(c, []).append((hit[0], hit[1], club_true[i, col[c]]))
-        rhos, rds = [], []
+                per_club.setdefault(c, []).append((hit[1], hit[2], club_true[i, col[c]], rep.rating[i, hit[0]], true_overall[i]))
+        rhos, rds, errs, err_rds, deltas = [], [], [], [], []
         for c, rows in per_club.items():
             if len(rows) >= MIN_CLUB_PLAYERS:
                 a = np.array(rows)
                 rhos.append(spearman(a[:, 0], a[:, 2]))
+                # what the club rating adds to the player's overall rating: club minus overall, against the true difference
+                deltas.append(spearman(a[:, 0] - a[:, 3], a[:, 2] - a[:, 4]))
                 rds.append(a[:, 1].mean())
+                e = a[:, 0] - a[:, 2]  # level-aligned within the club, as for the sport scope
+                errs.append(np.abs(e - np.median(e)))
+                err_rds.append(a[:, 1])
+        if errs:
+            e, r = np.concatenate(errs), np.concatenate(err_rds)
+            out[f"clubs.n{n}.cov1"], out[f"clubs.n{n}.cov2"] = float((e <= r).mean()), float((e <= 2 * r).mean())
+        else:
+            out[f"clubs.n{n}.cov1"] = out[f"clubs.n{n}.cov2"] = float("nan")
         out[f"clubs.n{n}.spearman"] = float(np.nanmean(rhos)) if rhos else float("nan")
+        out[f"clubs.n{n}.delta_spearman"] = float(np.nanmean(deltas)) if deltas else float("nan")
         out[f"clubs.n{n}.rd"] = float(np.mean(rds)) if rds else float("nan")
         out[f"clubs.n{n}.clubs"] = float(len(rhos))
