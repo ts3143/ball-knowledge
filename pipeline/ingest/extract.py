@@ -579,7 +579,9 @@ def _dewiki_coach_facts(person: str, kept: list[FactRow], stations: list[CoachSt
                 continue
             near = [s for s in in_window if abs(s.start - f.start_year) <= 1]
             if any(s.end is None for s in near):
-                continue        # an open row at this club confirms the spell as current: never close it
+                # An open row at this club confirms the spell as current: never close it.
+                f.qualifiers["dewiki_current"] = True
+                continue
             match = sorted((s for s in near if s.end >= f.start_year),
                            key=lambda s: (abs(s.start - f.start_year), s.start))
             if match:
@@ -683,6 +685,7 @@ def _dewiki_player_facts(person: str, kept: list[FactRow], unproven: dict[str, s
             if open_rows:
                 # An open current row confirms the spell as current: never close it with a loan's end.
                 f.qualifiers.setdefault("dewiki", []).append(_row_ref(open_rows[0]))
+                f.qualifiers["dewiki_current"] = True
                 confirmed.add(f.source_ref)
                 out.counts["players_rule2_open_spell_confirmed_current"] += 1
                 continue

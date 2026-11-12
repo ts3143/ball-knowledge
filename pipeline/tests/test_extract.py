@@ -493,6 +493,7 @@ def test_rule2_end_year_filled_from_row_with_same_or_adjacent_start():
     assert (second.end_year, second.date_quality) == (None, "open_ended")   # open row confirms the current spell
     assert ex.counts["players_rule2_end_year_filled"] == 1
     assert ex.counts["players_rule2_open_spell_confirmed_current"] == 1
+    assert second.qualifiers["dewiki_current"] is True and "dewiki_current" not in first.qualifiers
     assert len(played(ex)) == 2                                              # no extra dewiki facts
 
 
@@ -621,6 +622,7 @@ def test_rule2_open_current_row_is_not_closed_by_an_earlier_loan_row():
     assert "dewiki_filled" not in f.qualifiers
     assert ex.counts["players_rule2_end_year_filled"] == 0
     assert ex.counts["players_rule2_open_spell_confirmed_current"] == 1
+    assert f.qualifiers["dewiki_current"] is True
 
 
 def test_rule2_never_ends_a_spell_before_it_starts():
@@ -640,6 +642,7 @@ def test_coach_open_head_row_is_not_closed_by_an_interim_row_of_the_same_year():
     assert (f.source, f.start_year, f.end_year, f.date_quality) == ("wikidata", 2023, None, "open_ended")
     assert "dewiki_filled" not in f.qualifiers
     assert ex.counts["coach_end_year_filled"] == 0
+    assert f.qualifiers["dewiki_current"] is True
 
 
 def test_unreadable_senior_row_guard_keeps_a_stint_that_only_a_youth_row_overlaps():

@@ -170,6 +170,18 @@ def test_open_ended_without_a_start_year_is_weak(fx):
     assert all(weak == ["open_ended"] for _, weak in fx.seasons(cutoff=2010).values())
 
 
+def test_open_ended_before_the_cutoff_confirmed_current_by_dewiki_is_not_weak(fx):
+    fx.stint(quality="open_ended", start_year=2009, start_date=date(2009, 1, 1), start_precision=9,
+             qualifiers='{"dewiki_current": true}')
+    assert all(weak == [] for _, weak in fx.seasons(cutoff=2010).values())
+
+
+def test_open_ended_dewiki_fact_before_the_cutoff_is_not_weak(fx):
+    # dewiki open rows are only read for the person's current club.
+    fx.stint(quality="open_ended", source="dewiki", start_year=2009)
+    assert all(weak == [] for _, weak in fx.seasons(cutoff=2010).values())
+
+
 def test_undated_stays_weak_whatever_the_cutoff(fx):
     fx.stint(quality="undated")
     assert all(weak == ["undated"] for _, weak in fx.seasons(cutoff=2000).values())
