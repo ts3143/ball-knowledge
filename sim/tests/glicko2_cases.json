@@ -1,0 +1,8907 @@
+{
+ "engine_version": "bk-glicko-1",
+ "relative_tolerance": 1e-06,
+ "core": [
+  {
+   "name": "glickman_example",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1500.0,
+    "rd": 200.0,
+    "volatility": 0.06,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 1400.0,
+      "rd": 30.0,
+      "score": 1.0
+     },
+     {
+      "rating": 1550.0,
+      "rd": 100.0,
+      "score": 0.0
+     },
+     {
+      "rating": 1700.0,
+      "rd": 300.0,
+      "score": 0.0
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1464.0506705393013,
+    "rd": 151.51652412385727,
+    "volatility": 0.059995984286488495
+   },
+   "published": {
+    "rating": 1464.06,
+    "rd": 151.52,
+    "volatility": 0.05999
+   },
+   "published_abs_tolerance": {
+    "rating": 0.01,
+    "rd": 0.01,
+    "volatility": 1e-05
+   }
+  },
+  {
+   "name": "idle_3_periods",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1500.0,
+    "rd": 50.0,
+    "volatility": 0.06,
+    "idle_periods": 3,
+    "opponents": []
+   },
+   "expected": {
+    "rating": 1500.0,
+    "rd": 53.15939276927336,
+    "volatility": 0.06
+   }
+  },
+  {
+   "name": "idle_year_capped_growth",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1620.0,
+    "rd": 50.0,
+    "volatility": 0.06,
+    "idle_periods": 364,
+    "opponents": []
+   },
+   "expected": {
+    "rating": 1620.0,
+    "rd": 205.0489847277356,
+    "volatility": 0.06
+   }
+  },
+  {
+   "name": "idle_hits_cap",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1500.0,
+    "rd": 340.0,
+    "volatility": 0.06,
+    "idle_periods": 500,
+    "opponents": []
+   },
+   "expected": {
+    "rating": 1500.0,
+    "rd": 350.0,
+    "volatility": 0.06
+   }
+  },
+  {
+   "name": "rd_1_big_gap",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1500.0,
+    "rd": 1.0,
+    "volatility": 0.06,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 4500.0,
+      "rd": 30.0,
+      "score": 0.0
+     },
+     {
+      "rating": 1500.0,
+      "rd": 1.0,
+      "score": 0.5
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1499.9999999785468,
+    "rd": 10.46559441116359,
+    "volatility": 0.05999662848893637
+   }
+  },
+  {
+   "name": "rd_350_big_gap",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1500.0,
+    "rd": 350.0,
+    "volatility": 0.06,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": -1500.0,
+      "rd": 350.0,
+      "score": 1.0
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1500.0045261695805,
+    "rd": 349.99694934250044,
+    "volatility": 0.05999999994202568
+   }
+  },
+  {
+   "name": "fractional_results_w2",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 2.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1500.0,
+    "rd": 350.0,
+    "volatility": 0.06,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 1500.0,
+      "rd": 350.0,
+      "score": 0.25
+     },
+     {
+      "rating": 1600.0,
+      "rd": 350.0,
+      "score": 0.15
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1328.890031491086,
+    "rd": 209.75511085669262,
+    "volatility": 0.05999866399356784
+   }
+  },
+  {
+   "name": "random_00",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1494.934,
+    "rd": 169.976,
+    "volatility": 0.0616,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 1947.52,
+      "rd": 95.748,
+      "score": 1.0
+     },
+     {
+      "rating": 1881.158,
+      "rd": 109.941,
+      "score": 0.5
+     },
+     {
+      "rating": 2173.322,
+      "rd": 313.14,
+      "score": 0.1
+     },
+     {
+      "rating": 1522.442,
+      "rd": 86.289,
+      "score": 0.25
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1623.9500495374903,
+    "rd": 144.22543087832574,
+    "volatility": 0.061604423147784915
+   }
+  },
+  {
+   "name": "random_01",
+   "params": {
+    "tau": 0.8,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1673.831,
+    "rd": 238.185,
+    "volatility": 0.0708,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 1825.33,
+      "rd": 305.74,
+      "score": 0.75
+     },
+     {
+      "rating": 1143.003,
+      "rd": 263.452,
+      "score": 0.5
+     },
+     {
+      "rating": 1019.749,
+      "rd": 229.238,
+      "score": 0.15
+     },
+     {
+      "rating": 2159.301,
+      "rd": 90.568,
+      "score": 0.25
+     },
+     {
+      "rating": 1354.899,
+      "rd": 47.443,
+      "score": 0.75
+     },
+     {
+      "rating": 2060.494,
+      "rd": 337.306,
+      "score": 0.15
+     },
+     {
+      "rating": 1205.193,
+      "rd": 51.572,
+      "score": 0.75
+     },
+     {
+      "rating": 1788.993,
+      "rd": 301.702,
+      "score": 0.0
+     },
+     {
+      "rating": 1404.034,
+      "rd": 162.455,
+      "score": 0.1
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1440.7904597422266,
+    "rd": 153.91758085787848,
+    "volatility": 0.07081118669443326
+   }
+  },
+  {
+   "name": "random_02",
+   "params": {
+    "tau": 1.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 3.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1657.984,
+    "rd": 305.199,
+    "volatility": 0.0424,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 1667.189,
+      "rd": 107.468,
+      "score": 0.25
+     },
+     {
+      "rating": 1550.698,
+      "rd": 318.368,
+      "score": 0.0
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1406.286546993215,
+    "rd": 149.54789105766253,
+    "volatility": 0.042399286488038306
+   }
+  },
+  {
+   "name": "random_03",
+   "params": {
+    "tau": 0.8,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.5,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1452.856,
+    "rd": 127.721,
+    "volatility": 0.0626,
+    "idle_periods": 30,
+    "opponents": [
+     {
+      "rating": 1078.052,
+      "rd": 71.403,
+      "score": 0.1
+     },
+     {
+      "rating": 1282.681,
+      "rd": 247.006,
+      "score": 0.25
+     },
+     {
+      "rating": 1870.758,
+      "rd": 313.05,
+      "score": 0.1
+     },
+     {
+      "rating": 1853.283,
+      "rd": 54.877,
+      "score": 0.75
+     },
+     {
+      "rating": 1174.245,
+      "rd": 37.732,
+      "score": 0.15
+     },
+     {
+      "rating": 1908.969,
+      "rd": 174.397,
+      "score": 0.1
+     },
+     {
+      "rating": 1504.346,
+      "rd": 188.666,
+      "score": 0.1
+     },
+     {
+      "rating": 2148.452,
+      "rd": 198.546,
+      "score": 1.0
+     },
+     {
+      "rating": 1051.916,
+      "rd": 70.627,
+      "score": 0.0
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1310.9429114747327,
+    "rd": 103.76412910898466,
+    "volatility": 0.06263246939108383
+   }
+  },
+  {
+   "name": "random_04",
+   "params": {
+    "tau": 0.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 3.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1188.744,
+    "rd": 292.702,
+    "volatility": 0.0362,
+    "idle_periods": 5,
+    "opponents": [
+     {
+      "rating": 2133.259,
+      "rd": 340.319,
+      "score": 1.0
+     },
+     {
+      "rating": 2016.227,
+      "rd": 183.859,
+      "score": 0.75
+     },
+     {
+      "rating": 2187.785,
+      "rd": 332.377,
+      "score": 0.15
+     },
+     {
+      "rating": 1591.507,
+      "rd": 235.444,
+      "score": 0.75
+     },
+     {
+      "rating": 2179.094,
+      "rd": 197.513,
+      "score": 0.15
+     },
+     {
+      "rating": 1177.48,
+      "rd": 43.671,
+      "score": 1.0
+     },
+     {
+      "rating": 2084.804,
+      "rd": 182.792,
+      "score": 0.5
+     },
+     {
+      "rating": 1960.894,
+      "rd": 266.968,
+      "score": 1.0
+     }
+    ]
+   },
+   "expected": {
+    "rating": 2451.09985976569,
+    "rd": 141.70659576376121,
+    "volatility": 0.03620296373551855
+   }
+  },
+  {
+   "name": "random_05",
+   "params": {
+    "tau": 1.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.5,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1183.799,
+    "rd": 277.076,
+    "volatility": 0.0996,
+    "idle_periods": 5,
+    "opponents": [
+     {
+      "rating": 1510.17,
+      "rd": 275.948,
+      "score": 0.75
+     },
+     {
+      "rating": 1367.056,
+      "rd": 328.515,
+      "score": 0.75
+     },
+     {
+      "rating": 1444.413,
+      "rd": 119.489,
+      "score": 0.5
+     },
+     {
+      "rating": 1379.95,
+      "rd": 82.713,
+      "score": 0.75
+     },
+     {
+      "rating": 1741.94,
+      "rd": 139.956,
+      "score": 1.0
+     },
+     {
+      "rating": 2067.431,
+      "rd": 115.62,
+      "score": 1.0
+     },
+     {
+      "rating": 2002.462,
+      "rd": 64.838,
+      "score": 0.25
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1926.2987313430167,
+    "rd": 156.50861988743566,
+    "volatility": 0.1004838439233129
+   }
+  },
+  {
+   "name": "random_06",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1648.465,
+    "rd": 78.877,
+    "volatility": 0.0474,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 1549.181,
+      "rd": 186.12,
+      "score": 0.0
+     },
+     {
+      "rating": 1177.877,
+      "rd": 205.647,
+      "score": 0.1
+     },
+     {
+      "rating": 1566.739,
+      "rd": 32.431,
+      "score": 0.15
+     },
+     {
+      "rating": 1190.015,
+      "rd": 271.303,
+      "score": 0.0
+     },
+     {
+      "rating": 1015.681,
+      "rd": 249.211,
+      "score": 1.0
+     },
+     {
+      "rating": 1863.655,
+      "rd": 56.941,
+      "score": 0.5
+     },
+     {
+      "rating": 1845.322,
+      "rd": 202.481,
+      "score": 0.25
+     },
+     {
+      "rating": 1863.714,
+      "rd": 73.711,
+      "score": 0.75
+     },
+     {
+      "rating": 1908.78,
+      "rd": 149.526,
+      "score": 1.0
+     },
+     {
+      "rating": 1601.485,
+      "rd": 322.38,
+      "score": 0.1
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1615.9222133775772,
+    "rd": 70.37385374509688,
+    "volatility": 0.04739858909177424
+   }
+  },
+  {
+   "name": "random_07",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.5,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1514.159,
+    "rd": 141.304,
+    "volatility": 0.0742,
+    "idle_periods": 5,
+    "opponents": [
+     {
+      "rating": 1812.861,
+      "rd": 257.502,
+      "score": 0.75
+     },
+     {
+      "rating": 1445.778,
+      "rd": 247.994,
+      "score": 0.15
+     },
+     {
+      "rating": 1503.434,
+      "rd": 232.332,
+      "score": 0.1
+     },
+     {
+      "rating": 1242.596,
+      "rd": 247.283,
+      "score": 0.1
+     },
+     {
+      "rating": 1639.364,
+      "rd": 98.692,
+      "score": 0.75
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1474.7313145389744,
+    "rd": 109.3529946180398,
+    "volatility": 0.07418694117239942
+   }
+  },
+  {
+   "name": "random_08",
+   "params": {
+    "tau": 0.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 3.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1355.293,
+    "rd": 308.163,
+    "volatility": 0.0506,
+    "idle_periods": 30,
+    "opponents": [
+     {
+      "rating": 1947.387,
+      "rd": 340.827,
+      "score": 0.0
+     },
+     {
+      "rating": 1810.258,
+      "rd": 40.77,
+      "score": 0.25
+     },
+     {
+      "rating": 2013.888,
+      "rd": 54.955,
+      "score": 1.0
+     },
+     {
+      "rating": 1423.212,
+      "rd": 294.882,
+      "score": 0.0
+     },
+     {
+      "rating": 1157.925,
+      "rd": 227.108,
+      "score": 1.0
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1708.1901389647046,
+    "rd": 143.10506260047163,
+    "volatility": 0.050600196562866455
+   }
+  },
+  {
+   "name": "random_09",
+   "params": {
+    "tau": 0.8,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.5,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1575.702,
+    "rd": 83.119,
+    "volatility": 0.0205,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 1429.833,
+      "rd": 154.369,
+      "score": 0.15
+     },
+     {
+      "rating": 1154.812,
+      "rd": 63.271,
+      "score": 0.0
+     },
+     {
+      "rating": 1839.592,
+      "rd": 119.837,
+      "score": 0.1
+     },
+     {
+      "rating": 1010.052,
+      "rd": 92.11,
+      "score": 0.0
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1451.532249300545,
+    "rd": 77.71534062285679,
+    "volatility": 0.020512641467487967
+   }
+  },
+  {
+   "name": "random_10",
+   "params": {
+    "tau": 0.8,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.5,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1636.735,
+    "rd": 231.19,
+    "volatility": 0.0259,
+    "idle_periods": 30,
+    "opponents": [
+     {
+      "rating": 1009.508,
+      "rd": 170.364,
+      "score": 0.75
+     },
+     {
+      "rating": 1992.849,
+      "rd": 257.981,
+      "score": 0.25
+     },
+     {
+      "rating": 1201.537,
+      "rd": 154.07,
+      "score": 0.15
+     },
+     {
+      "rating": 1921.441,
+      "rd": 345.264,
+      "score": 0.0
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1374.184251612635,
+    "rd": 177.19315123099526,
+    "volatility": 0.025901327080251352
+   }
+  },
+  {
+   "name": "random_11",
+   "params": {
+    "tau": 1.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.5,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1506.184,
+    "rd": 138.052,
+    "volatility": 0.0707,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 1463.177,
+      "rd": 157.562,
+      "score": 0.0
+     },
+     {
+      "rating": 1766.053,
+      "rd": 238.284,
+      "score": 0.25
+     },
+     {
+      "rating": 1729.99,
+      "rd": 161.289,
+      "score": 0.75
+     },
+     {
+      "rating": 1266.286,
+      "rd": 282.154,
+      "score": 0.1
+     },
+     {
+      "rating": 1774.313,
+      "rd": 69.39,
+      "score": 1.0
+     },
+     {
+      "rating": 1475.109,
+      "rd": 333.192,
+      "score": 0.0
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1499.7646700790474,
+    "rd": 103.7154034135242,
+    "volatility": 0.07061275491197791
+   }
+  },
+  {
+   "name": "random_12",
+   "params": {
+    "tau": 0.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.5,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1239.226,
+    "rd": 57.346,
+    "volatility": 0.0852,
+    "idle_periods": 5,
+    "opponents": [
+     {
+      "rating": 2041.654,
+      "rd": 186.114,
+      "score": 0.0
+     },
+     {
+      "rating": 1551.261,
+      "rd": 34.295,
+      "score": 0.15
+     },
+     {
+      "rating": 1035.605,
+      "rd": 38.993,
+      "score": 0.15
+     },
+     {
+      "rating": 1653.291,
+      "rd": 114.508,
+      "score": 0.0
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1213.423509008372,
+    "rd": 65.00413826394649,
+    "volatility": 0.08520254035920864
+   }
+  },
+  {
+   "name": "random_13",
+   "params": {
+    "tau": 0.8,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.5,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1599.757,
+    "rd": 144.615,
+    "volatility": 0.0664,
+    "idle_periods": 5,
+    "opponents": [
+     {
+      "rating": 1550.911,
+      "rd": 204.734,
+      "score": 0.15
+     },
+     {
+      "rating": 1121.454,
+      "rd": 45.837,
+      "score": 0.15
+     },
+     {
+      "rating": 2038.305,
+      "rd": 205.137,
+      "score": 0.25
+     },
+     {
+      "rating": 1992.93,
+      "rd": 292.775,
+      "score": 0.5
+     },
+     {
+      "rating": 1722.948,
+      "rd": 85.866,
+      "score": 0.5
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1530.9369900786476,
+    "rd": 115.67395292411604,
+    "volatility": 0.0663892228739721
+   }
+  },
+  {
+   "name": "random_14",
+   "params": {
+    "tau": 0.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 3.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1637.616,
+    "rd": 90.079,
+    "volatility": 0.0748,
+    "idle_periods": 1,
+    "opponents": [
+     {
+      "rating": 1148.889,
+      "rd": 154.801,
+      "score": 0.1
+     },
+     {
+      "rating": 1669.831,
+      "rd": 90.298,
+      "score": 0.5
+     },
+     {
+      "rating": 1886.226,
+      "rd": 49.957,
+      "score": 0.75
+     },
+     {
+      "rating": 1799.638,
+      "rd": 113.673,
+      "score": 0.1
+     },
+     {
+      "rating": 1895.937,
+      "rd": 305.569,
+      "score": 0.15
+     },
+     {
+      "rating": 1868.534,
+      "rd": 40.786,
+      "score": 0.5
+     },
+     {
+      "rating": 1477.362,
+      "rd": 318.018,
+      "score": 0.5
+     },
+     {
+      "rating": 1014.303,
+      "rd": 253.02,
+      "score": 1.0
+     },
+     {
+      "rating": 1759.795,
+      "rd": 214.155,
+      "score": 0.1
+     },
+     {
+      "rating": 1965.641,
+      "rd": 134.355,
+      "score": 1.0
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1664.1944206118492,
+    "rd": 63.64589465867444,
+    "volatility": 0.0747934690788235
+   }
+  },
+  {
+   "name": "random_15",
+   "params": {
+    "tau": 0.8,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 3.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1364.185,
+    "rd": 46.748,
+    "volatility": 0.056,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 1923.137,
+      "rd": 167.68,
+      "score": 0.0
+     },
+     {
+      "rating": 1395.738,
+      "rd": 307.519,
+      "score": 0.5
+     },
+     {
+      "rating": 1563.492,
+      "rd": 155.258,
+      "score": 0.75
+     },
+     {
+      "rating": 1742.2,
+      "rd": 102.207,
+      "score": 0.0
+     },
+     {
+      "rating": 1018.378,
+      "rd": 193.168,
+      "score": 0.15
+     },
+     {
+      "rating": 1672.4,
+      "rd": 209.818,
+      "score": 0.0
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1348.8788930813023,
+    "rd": 44.73676143436583,
+    "volatility": 0.05599276993736439
+   }
+  },
+  {
+   "name": "random_16",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1619.725,
+    "rd": 284.611,
+    "volatility": 0.0274,
+    "idle_periods": 5,
+    "opponents": [
+     {
+      "rating": 1050.509,
+      "rd": 136.809,
+      "score": 0.0
+     },
+     {
+      "rating": 1255.857,
+      "rd": 107.786,
+      "score": 0.0
+     },
+     {
+      "rating": 1142.995,
+      "rd": 65.131,
+      "score": 0.0
+     },
+     {
+      "rating": 2017.681,
+      "rd": 256.271,
+      "score": 0.75
+     },
+     {
+      "rating": 2124.517,
+      "rd": 322.136,
+      "score": 0.15
+     },
+     {
+      "rating": 1105.207,
+      "rd": 69.786,
+      "score": 0.0
+     },
+     {
+      "rating": 1863.713,
+      "rd": 105.425,
+      "score": 0.75
+     },
+     {
+      "rating": 2129.58,
+      "rd": 245.431,
+      "score": 1.0
+     },
+     {
+      "rating": 1212.225,
+      "rd": 202.173,
+      "score": 0.25
+     },
+     {
+      "rating": 2193.528,
+      "rd": 252.143,
+      "score": 0.75
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1318.349907528635,
+    "rd": 169.5656401294024,
+    "volatility": 0.027400226542975328
+   }
+  },
+  {
+   "name": "random_17",
+   "params": {
+    "tau": 1.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1667.054,
+    "rd": 337.639,
+    "volatility": 0.0214,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 1356.197,
+      "rd": 129.81,
+      "score": 1.0
+     },
+     {
+      "rating": 1934.437,
+      "rd": 113.932,
+      "score": 0.25
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1735.8598847562025,
+    "rd": 241.7897680083426,
+    "volatility": 0.02139958378771464
+   }
+  },
+  {
+   "name": "random_18",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 3.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1412.65,
+    "rd": 130.942,
+    "volatility": 0.0372,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 2017.078,
+      "rd": 56.745,
+      "score": 0.5
+     },
+     {
+      "rating": 1768.659,
+      "rd": 118.541,
+      "score": 0.5
+     },
+     {
+      "rating": 1481.399,
+      "rd": 126.203,
+      "score": 0.25
+     },
+     {
+      "rating": 1102.666,
+      "rd": 220.606,
+      "score": 0.1
+     },
+     {
+      "rating": 2163.937,
+      "rd": 127.039,
+      "score": 0.5
+     },
+     {
+      "rating": 1582.745,
+      "rd": 310.712,
+      "score": 0.5
+     },
+     {
+      "rating": 1739.701,
+      "rd": 279.884,
+      "score": 0.0
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1482.4279776289018,
+    "rd": 90.09119851368285,
+    "volatility": 0.0371986189497495
+   }
+  },
+  {
+   "name": "random_19",
+   "params": {
+    "tau": 1.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1206.063,
+    "rd": 266.173,
+    "volatility": 0.0697,
+    "idle_periods": 1,
+    "opponents": [
+     {
+      "rating": 1839.219,
+      "rd": 146.349,
+      "score": 1.0
+     },
+     {
+      "rating": 2143.719,
+      "rd": 126.635,
+      "score": 1.0
+     },
+     {
+      "rating": 1807.015,
+      "rd": 286.186,
+      "score": 0.15
+     },
+     {
+      "rating": 2098.341,
+      "rd": 135.394,
+      "score": 0.0
+     },
+     {
+      "rating": 1306.427,
+      "rd": 267.006,
+      "score": 0.75
+     },
+     {
+      "rating": 1814.887,
+      "rd": 106.509,
+      "score": 0.15
+     },
+     {
+      "rating": 1655.374,
+      "rd": 37.963,
+      "score": 0.1
+     },
+     {
+      "rating": 1458.6,
+      "rd": 155.73,
+      "score": 0.15
+     },
+     {
+      "rating": 1289.509,
+      "rd": 136.896,
+      "score": 0.5
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1578.982236303227,
+    "rd": 167.83399369981234,
+    "volatility": 0.06977002179932586
+   }
+  },
+  {
+   "name": "random_20",
+   "params": {
+    "tau": 0.8,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.5,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1169.993,
+    "rd": 100.899,
+    "volatility": 0.092,
+    "idle_periods": 5,
+    "opponents": [
+     {
+      "rating": 1088.143,
+      "rd": 239.752,
+      "score": 0.25
+     },
+     {
+      "rating": 1580.67,
+      "rd": 316.291,
+      "score": 0.0
+     },
+     {
+      "rating": 1610.507,
+      "rd": 79.096,
+      "score": 1.0
+     },
+     {
+      "rating": 1397.236,
+      "rd": 85.307,
+      "score": 0.5
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1232.4616858900172,
+    "rd": 96.3908006902118,
+    "volatility": 0.09204060574370851
+   }
+  },
+  {
+   "name": "random_21",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 3.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1684.298,
+    "rd": 147.695,
+    "volatility": 0.044,
+    "idle_periods": 5,
+    "opponents": [
+     {
+      "rating": 1649.094,
+      "rd": 277.427,
+      "score": 0.1
+     },
+     {
+      "rating": 1613.22,
+      "rd": 238.605,
+      "score": 0.75
+     },
+     {
+      "rating": 1189.892,
+      "rd": 231.919,
+      "score": 1.0
+     },
+     {
+      "rating": 1563.639,
+      "rd": 256.252,
+      "score": 0.25
+     },
+     {
+      "rating": 2178.612,
+      "rd": 144.868,
+      "score": 0.0
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1600.6905751521178,
+    "rd": 100.47059004579145,
+    "volatility": 0.0439983387679506
+   }
+  },
+  {
+   "name": "random_22",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 3.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1227.912,
+    "rd": 172.645,
+    "volatility": 0.0607,
+    "idle_periods": 1,
+    "opponents": [
+     {
+      "rating": 1259.364,
+      "rd": 56.854,
+      "score": 1.0
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1389.7241508004201,
+    "rd": 132.24405253834544,
+    "volatility": 0.06070638387697467
+   }
+  },
+  {
+   "name": "random_23",
+   "params": {
+    "tau": 0.8,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.5,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1477.748,
+    "rd": 79.495,
+    "volatility": 0.0744,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 2082.665,
+      "rd": 197.983,
+      "score": 0.25
+     },
+     {
+      "rating": 1244.022,
+      "rd": 205.865,
+      "score": 0.25
+     },
+     {
+      "rating": 1109.527,
+      "rd": 322.171,
+      "score": 0.75
+     },
+     {
+      "rating": 1713.043,
+      "rd": 286.6,
+      "score": 0.25
+     },
+     {
+      "rating": 1447.756,
+      "rd": 182.565,
+      "score": 0.1
+     },
+     {
+      "rating": 1721.53,
+      "rd": 179.109,
+      "score": 0.75
+     },
+     {
+      "rating": 1026.616,
+      "rd": 170.415,
+      "score": 0.0
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1430.7948130229543,
+    "rd": 72.47400647418804,
+    "volatility": 0.07444592914674829
+   }
+  },
+  {
+   "name": "random_24",
+   "params": {
+    "tau": 0.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1583.726,
+    "rd": 59.538,
+    "volatility": 0.0514,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 1774.575,
+      "rd": 335.899,
+      "score": 1.0
+     },
+     {
+      "rating": 1297.665,
+      "rd": 203.926,
+      "score": 0.5
+     },
+     {
+      "rating": 1845.351,
+      "rd": 331.984,
+      "score": 0.0
+     },
+     {
+      "rating": 1203.617,
+      "rd": 133.463,
+      "score": 0.75
+     },
+     {
+      "rating": 1558.136,
+      "rd": 194.557,
+      "score": 1.0
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1589.782210345369,
+    "rd": 58.22731349506767,
+    "volatility": 0.051399384224442096
+   }
+  },
+  {
+   "name": "random_25",
+   "params": {
+    "tau": 0.8,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 3.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1297.648,
+    "rd": 339.901,
+    "volatility": 0.041,
+    "idle_periods": 5,
+    "opponents": [
+     {
+      "rating": 1114.609,
+      "rd": 253.675,
+      "score": 0.75
+     },
+     {
+      "rating": 1328.186,
+      "rd": 320.391,
+      "score": 1.0
+     },
+     {
+      "rating": 1190.602,
+      "rd": 307.815,
+      "score": 0.1
+     },
+     {
+      "rating": 2051.657,
+      "rd": 281.563,
+      "score": 0.1
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1333.1592411673034,
+    "rd": 144.738089709587,
+    "volatility": 0.04099767822778779
+   }
+  },
+  {
+   "name": "random_26",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1472.812,
+    "rd": 184.692,
+    "volatility": 0.0579,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 1644.597,
+      "rd": 35.517,
+      "score": 0.25
+     },
+     {
+      "rating": 2144.223,
+      "rd": 264.042,
+      "score": 0.15
+     },
+     {
+      "rating": 1007.664,
+      "rd": 255.753,
+      "score": 0.5
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1435.998446473292,
+    "rd": 160.9607423476443,
+    "volatility": 0.05789782675092001
+   }
+  },
+  {
+   "name": "random_27",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 3.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1378.168,
+    "rd": 325.569,
+    "volatility": 0.0593,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 1047.774,
+      "rd": 233.892,
+      "score": 0.0
+     },
+     {
+      "rating": 2059.293,
+      "rd": 100.035,
+      "score": 0.75
+     },
+     {
+      "rating": 1906.425,
+      "rd": 307.403,
+      "score": 0.5
+     },
+     {
+      "rating": 1229.499,
+      "rd": 140.547,
+      "score": 0.15
+     },
+     {
+      "rating": 1711.998,
+      "rd": 147.5,
+      "score": 0.75
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1497.8528398446829,
+    "rd": 136.40399150386764,
+    "volatility": 0.05929744382684759
+   }
+  },
+  {
+   "name": "random_28",
+   "params": {
+    "tau": 0.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.5,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1876.441,
+    "rd": 304.772,
+    "volatility": 0.0649,
+    "idle_periods": 30,
+    "opponents": [
+     {
+      "rating": 2147.517,
+      "rd": 39.966,
+      "score": 0.5
+     },
+     {
+      "rating": 1494.327,
+      "rd": 208.34,
+      "score": 0.0
+     },
+     {
+      "rating": 1845.809,
+      "rd": 256.306,
+      "score": 1.0
+     },
+     {
+      "rating": 1817.598,
+      "rd": 255.8,
+      "score": 0.1
+     },
+     {
+      "rating": 1004.318,
+      "rd": 128.698,
+      "score": 0.75
+     },
+     {
+      "rating": 1615.038,
+      "rd": 260.346,
+      "score": 0.15
+     },
+     {
+      "rating": 1798.879,
+      "rd": 267.361,
+      "score": 0.1
+     },
+     {
+      "rating": 2094.385,
+      "rd": 51.633,
+      "score": 0.25
+     },
+     {
+      "rating": 1319.031,
+      "rd": 104.362,
+      "score": 0.15
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1557.149913277068,
+    "rd": 129.66725927563814,
+    "volatility": 0.06490019299990271
+   }
+  },
+  {
+   "name": "random_29",
+   "params": {
+    "tau": 1.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1616.245,
+    "rd": 92.904,
+    "volatility": 0.0575,
+    "idle_periods": 30,
+    "opponents": [
+     {
+      "rating": 1447.1,
+      "rd": 214.313,
+      "score": 1.0
+     },
+     {
+      "rating": 1834.543,
+      "rd": 165.693,
+      "score": 0.1
+     },
+     {
+      "rating": 1824.115,
+      "rd": 268.703,
+      "score": 0.15
+     },
+     {
+      "rating": 2170.191,
+      "rd": 101.003,
+      "score": 0.0
+     },
+     {
+      "rating": 1217.542,
+      "rd": 215.696,
+      "score": 0.1
+     },
+     {
+      "rating": 1033.187,
+      "rd": 315.809,
+      "score": 0.15
+     },
+     {
+      "rating": 1533.646,
+      "rd": 201.914,
+      "score": 0.5
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1549.040733481115,
+    "rd": 95.47536521781275,
+    "volatility": 0.05752869880622267
+   }
+  },
+  {
+   "name": "random_30",
+   "params": {
+    "tau": 0.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.5,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1195.433,
+    "rd": 183.879,
+    "volatility": 0.0667,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 1497.828,
+      "rd": 58.663,
+      "score": 0.5
+     },
+     {
+      "rating": 1475.775,
+      "rd": 202.16,
+      "score": 0.1
+     },
+     {
+      "rating": 1432.406,
+      "rd": 133.625,
+      "score": 0.0
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1204.1380648601819,
+    "rd": 143.32349466939385,
+    "volatility": 0.06669896424754346
+   }
+  },
+  {
+   "name": "random_31",
+   "params": {
+    "tau": 1.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 3.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1836.521,
+    "rd": 119.874,
+    "volatility": 0.0351,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 1022.371,
+      "rd": 36.148,
+      "score": 0.75
+     },
+     {
+      "rating": 1790.493,
+      "rd": 283.187,
+      "score": 0.75
+     },
+     {
+      "rating": 1348.092,
+      "rd": 335.13,
+      "score": 1.0
+     },
+     {
+      "rating": 1027.993,
+      "rd": 199.672,
+      "score": 0.75
+     },
+     {
+      "rating": 1888.173,
+      "rd": 37.721,
+      "score": 0.0
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1742.7909171308015,
+    "rd": 93.48112896544379,
+    "volatility": 0.03510705883942624
+   }
+  },
+  {
+   "name": "random_32",
+   "params": {
+    "tau": 0.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.5,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1851.712,
+    "rd": 316.143,
+    "volatility": 0.0418,
+    "idle_periods": 1,
+    "opponents": [
+     {
+      "rating": 1989.204,
+      "rd": 307.512,
+      "score": 0.15
+     },
+     {
+      "rating": 1787.789,
+      "rd": 309.058,
+      "score": 0.1
+     },
+     {
+      "rating": 2037.007,
+      "rd": 33.445,
+      "score": 0.5
+     },
+     {
+      "rating": 1836.41,
+      "rd": 214.104,
+      "score": 0.15
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1733.566184380538,
+    "rd": 158.15403469858612,
+    "volatility": 0.0417998655167687
+   }
+  },
+  {
+   "name": "random_33",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.5,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1584.081,
+    "rd": 102.709,
+    "volatility": 0.0844,
+    "idle_periods": 5,
+    "opponents": [
+     {
+      "rating": 1774.594,
+      "rd": 61.534,
+      "score": 1.0
+     },
+     {
+      "rating": 1767.827,
+      "rd": 144.773,
+      "score": 0.5
+     },
+     {
+      "rating": 1812.004,
+      "rd": 120.842,
+      "score": 0.75
+     },
+     {
+      "rating": 1969.673,
+      "rd": 149.905,
+      "score": 0.75
+     },
+     {
+      "rating": 1666.322,
+      "rd": 71.473,
+      "score": 0.25
+     },
+     {
+      "rating": 1062.369,
+      "rd": 40.007,
+      "score": 0.15
+     },
+     {
+      "rating": 1733.138,
+      "rd": 118.225,
+      "score": 1.0
+     },
+     {
+      "rating": 1861.845,
+      "rd": 307.99,
+      "score": 1.0
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1722.0698325541987,
+    "rd": 84.20689840594106,
+    "volatility": 0.08451601448834149
+   }
+  },
+  {
+   "name": "random_34",
+   "params": {
+    "tau": 0.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1765.546,
+    "rd": 69.76,
+    "volatility": 0.0323,
+    "idle_periods": 5,
+    "opponents": [
+     {
+      "rating": 2031.58,
+      "rd": 345.387,
+      "score": 0.15
+     },
+     {
+      "rating": 1482.985,
+      "rd": 250.187,
+      "score": 0.25
+     },
+     {
+      "rating": 1453.227,
+      "rd": 153.682,
+      "score": 0.1
+     },
+     {
+      "rating": 1496.895,
+      "rd": 237.748,
+      "score": 1.0
+     },
+     {
+      "rating": 1908.293,
+      "rd": 286.979,
+      "score": 0.0
+     },
+     {
+      "rating": 1347.744,
+      "rd": 178.029,
+      "score": 0.5
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1724.052563883595,
+    "rd": 67.70176871340921,
+    "volatility": 0.032300497362512955
+   }
+  },
+  {
+   "name": "random_35",
+   "params": {
+    "tau": 1.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1364.007,
+    "rd": 230.768,
+    "volatility": 0.0824,
+    "idle_periods": 5,
+    "opponents": [
+     {
+      "rating": 1531.803,
+      "rd": 239.487,
+      "score": 0.15
+     },
+     {
+      "rating": 1520.609,
+      "rd": 220.623,
+      "score": 0.75
+     },
+     {
+      "rating": 1582.569,
+      "rd": 123.702,
+      "score": 0.15
+     },
+     {
+      "rating": 1216.403,
+      "rd": 311.002,
+      "score": 0.15
+     },
+     {
+      "rating": 1841.849,
+      "rd": 82.663,
+      "score": 0.75
+     },
+     {
+      "rating": 1113.251,
+      "rd": 41.348,
+      "score": 0.5
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1382.476221160784,
+    "rd": 151.18380646116827,
+    "volatility": 0.082336104637647
+   }
+  },
+  {
+   "name": "random_36",
+   "params": {
+    "tau": 0.8,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1541.917,
+    "rd": 48.75,
+    "volatility": 0.083,
+    "idle_periods": 5,
+    "opponents": [
+     {
+      "rating": 1721.965,
+      "rd": 244.585,
+      "score": 0.1
+     },
+     {
+      "rating": 1984.046,
+      "rd": 194.78,
+      "score": 0.0
+     },
+     {
+      "rating": 2186.676,
+      "rd": 217.487,
+      "score": 0.1
+     },
+     {
+      "rating": 1526.489,
+      "rd": 103.25,
+      "score": 0.15
+     },
+     {
+      "rating": 1733.605,
+      "rd": 91.22,
+      "score": 0.25
+     },
+     {
+      "rating": 1703.539,
+      "rd": 211.433,
+      "score": 0.25
+     },
+     {
+      "rating": 1320.98,
+      "rd": 82.569,
+      "score": 1.0
+     },
+     {
+      "rating": 1762.858,
+      "rd": 154.72,
+      "score": 1.0
+     },
+     {
+      "rating": 1956.969,
+      "rd": 96.54,
+      "score": 0.25
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1549.7890032244134,
+    "rd": 56.37421504478953,
+    "volatility": 0.08291955405506432
+   }
+  },
+  {
+   "name": "random_37",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.5,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1551.883,
+    "rd": 282.664,
+    "volatility": 0.0265,
+    "idle_periods": 30,
+    "opponents": [
+     {
+      "rating": 2169.057,
+      "rd": 114.922,
+      "score": 0.25
+     },
+     {
+      "rating": 2083.346,
+      "rd": 203.976,
+      "score": 0.5
+     },
+     {
+      "rating": 1280.581,
+      "rd": 192.071,
+      "score": 0.75
+     },
+     {
+      "rating": 1409.219,
+      "rd": 82.233,
+      "score": 0.25
+     },
+     {
+      "rating": 1811.979,
+      "rd": 291.378,
+      "score": 0.15
+     },
+     {
+      "rating": 1298.433,
+      "rd": 238.001,
+      "score": 0.15
+     },
+     {
+      "rating": 1694.504,
+      "rd": 246.364,
+      "score": 0.15
+     },
+     {
+      "rating": 2126.243,
+      "rd": 284.788,
+      "score": 0.75
+     },
+     {
+      "rating": 2037.545,
+      "rd": 182.528,
+      "score": 1.0
+     },
+     {
+      "rating": 1164.649,
+      "rd": 326.481,
+      "score": 0.5
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1619.4931259560856,
+    "rd": 131.17707486256788,
+    "volatility": 0.02649968208520925
+   }
+  },
+  {
+   "name": "random_38",
+   "params": {
+    "tau": 1.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1782.642,
+    "rd": 329.862,
+    "volatility": 0.0375,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 1938.169,
+      "rd": 66.365,
+      "score": 0.15
+     },
+     {
+      "rating": 1017.1,
+      "rd": 40.7,
+      "score": 0.5
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1560.4204307256946,
+    "rd": 248.6475837363142,
+    "volatility": 0.037500113951259274
+   }
+  },
+  {
+   "name": "random_39",
+   "params": {
+    "tau": 1.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.5,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1355.543,
+    "rd": 115.205,
+    "volatility": 0.0402,
+    "idle_periods": 30,
+    "opponents": [
+     {
+      "rating": 1554.41,
+      "rd": 132.501,
+      "score": 0.75
+     },
+     {
+      "rating": 1847.371,
+      "rd": 236.961,
+      "score": 1.0
+     },
+     {
+      "rating": 1841.367,
+      "rd": 337.249,
+      "score": 0.0
+     },
+     {
+      "rating": 1400.809,
+      "rd": 280.468,
+      "score": 1.0
+     },
+     {
+      "rating": 1886.921,
+      "rd": 82.026,
+      "score": 0.0
+     },
+     {
+      "rating": 1382.485,
+      "rd": 163.135,
+      "score": 0.25
+     },
+     {
+      "rating": 1799.285,
+      "rd": 340.668,
+      "score": 0.1
+     },
+     {
+      "rating": 1621.895,
+      "rd": 145.261,
+      "score": 0.1
+     },
+     {
+      "rating": 1516.675,
+      "rd": 205.145,
+      "score": 0.25
+     },
+     {
+      "rating": 1705.248,
+      "rd": 196.517,
+      "score": 0.5
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1453.308200882075,
+    "rd": 90.72865894666432,
+    "volatility": 0.040209711531545136
+   }
+  },
+  {
+   "name": "random_40",
+   "params": {
+    "tau": 1.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1324.245,
+    "rd": 320.409,
+    "volatility": 0.0322,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 1452.405,
+      "rd": 176.826,
+      "score": 0.1
+     },
+     {
+      "rating": 1673.386,
+      "rd": 297.427,
+      "score": 0.15
+     },
+     {
+      "rating": 1505.074,
+      "rd": 330.977,
+      "score": 0.5
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1291.6072089244972,
+    "rd": 215.27641861732968,
+    "volatility": 0.03219809877972142
+   }
+  },
+  {
+   "name": "random_41",
+   "params": {
+    "tau": 0.8,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 3.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1298.546,
+    "rd": 144.303,
+    "volatility": 0.0457,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 2039.698,
+      "rd": 230.6,
+      "score": 0.0
+     },
+     {
+      "rating": 1758.694,
+      "rd": 344.502,
+      "score": 0.25
+     },
+     {
+      "rating": 1885.155,
+      "rd": 331.805,
+      "score": 0.75
+     },
+     {
+      "rating": 1969.507,
+      "rd": 120.113,
+      "score": 0.5
+     },
+     {
+      "rating": 2176.172,
+      "rd": 165.799,
+      "score": 0.1
+     },
+     {
+      "rating": 2169.294,
+      "rd": 237.52,
+      "score": 0.15
+     },
+     {
+      "rating": 1022.741,
+      "rd": 72.324,
+      "score": 0.15
+     },
+     {
+      "rating": 1383.628,
+      "rd": 307.613,
+      "score": 0.15
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1353.1573157670712,
+    "rd": 105.74723608741219,
+    "volatility": 0.045692901437906316
+   }
+  },
+  {
+   "name": "random_42",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 3.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1868.155,
+    "rd": 46.291,
+    "volatility": 0.0717,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 2083.923,
+      "rd": 48.937,
+      "score": 0.0
+     },
+     {
+      "rating": 1817.47,
+      "rd": 323.097,
+      "score": 0.0
+     },
+     {
+      "rating": 1515.123,
+      "rd": 89.734,
+      "score": 0.0
+     },
+     {
+      "rating": 1255.299,
+      "rd": 340.769,
+      "score": 0.5
+     },
+     {
+      "rating": 1305.116,
+      "rd": 291.369,
+      "score": 0.0
+     },
+     {
+      "rating": 1442.312,
+      "rd": 202.775,
+      "score": 0.5
+     },
+     {
+      "rating": 1943.988,
+      "rd": 112.991,
+      "score": 0.1
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1765.9195646980372,
+    "rd": 44.33147593778078,
+    "volatility": 0.07308955168572778
+   }
+  },
+  {
+   "name": "random_43",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 3.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1856.609,
+    "rd": 262.737,
+    "volatility": 0.0306,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 1490.96,
+      "rd": 34.431,
+      "score": 0.75
+     },
+     {
+      "rating": 1053.256,
+      "rd": 74.134,
+      "score": 0.5
+     },
+     {
+      "rating": 2114.065,
+      "rd": 233.365,
+      "score": 0.1
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1515.6347614519939,
+    "rd": 165.3331341917844,
+    "volatility": 0.030600844712379227
+   }
+  },
+  {
+   "name": "random_44",
+   "params": {
+    "tau": 0.8,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.5,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1307.542,
+    "rd": 127.241,
+    "volatility": 0.0959,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 1335.162,
+      "rd": 124.864,
+      "score": 0.1
+     },
+     {
+      "rating": 1341.819,
+      "rd": 154.136,
+      "score": 0.5
+     },
+     {
+      "rating": 2115.521,
+      "rd": 233.633,
+      "score": 0.25
+     },
+     {
+      "rating": 1170.479,
+      "rd": 74.829,
+      "score": 0.0
+     },
+     {
+      "rating": 1976.615,
+      "rd": 234.524,
+      "score": 0.5
+     },
+     {
+      "rating": 1175.781,
+      "rd": 254.5,
+      "score": 0.75
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1279.0896817395346,
+    "rd": 99.74761493098953,
+    "volatility": 0.09581056569941583
+   }
+  },
+  {
+   "name": "random_45",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.5,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1888.955,
+    "rd": 198.368,
+    "volatility": 0.0996,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 2126.427,
+      "rd": 198.918,
+      "score": 0.1
+     },
+     {
+      "rating": 2006.649,
+      "rd": 288.629,
+      "score": 0.5
+     },
+     {
+      "rating": 1331.63,
+      "rd": 299.063,
+      "score": 1.0
+     },
+     {
+      "rating": 1510.382,
+      "rd": 250.302,
+      "score": 0.5
+     },
+     {
+      "rating": 1207.832,
+      "rd": 174.002,
+      "score": 0.15
+     },
+     {
+      "rating": 1443.593,
+      "rd": 294.018,
+      "score": 0.0
+     },
+     {
+      "rating": 2155.555,
+      "rd": 194.253,
+      "score": 0.1
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1622.030610667136,
+    "rd": 135.6008734184749,
+    "volatility": 0.09965934294554764
+   }
+  },
+  {
+   "name": "random_46",
+   "params": {
+    "tau": 0.8,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1348.356,
+    "rd": 183.694,
+    "volatility": 0.0714,
+    "idle_periods": 1,
+    "opponents": [
+     {
+      "rating": 1024.87,
+      "rd": 140.811,
+      "score": 0.5
+     },
+     {
+      "rating": 2118.568,
+      "rd": 58.734,
+      "score": 0.25
+     },
+     {
+      "rating": 1590.746,
+      "rd": 58.745,
+      "score": 0.75
+     },
+     {
+      "rating": 1559.351,
+      "rd": 158.794,
+      "score": 0.5
+     },
+     {
+      "rating": 1168.587,
+      "rd": 47.621,
+      "score": 1.0
+     },
+     {
+      "rating": 1291.187,
+      "rd": 45.445,
+      "score": 0.5
+     },
+     {
+      "rating": 2174.617,
+      "rd": 298.259,
+      "score": 0.15
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1441.7702296811342,
+    "rd": 131.0171677342036,
+    "volatility": 0.07138763603347069
+   }
+  },
+  {
+   "name": "random_47",
+   "params": {
+    "tau": 0.8,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.5,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1894.835,
+    "rd": 254.967,
+    "volatility": 0.0697,
+    "idle_periods": 1,
+    "opponents": [
+     {
+      "rating": 1811.85,
+      "rd": 180.46,
+      "score": 0.25
+     },
+     {
+      "rating": 1330.262,
+      "rd": 143.843,
+      "score": 0.0
+     },
+     {
+      "rating": 1638.012,
+      "rd": 161.518,
+      "score": 0.15
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1436.8711949397102,
+    "rd": 174.6657819287038,
+    "volatility": 0.06976723349473334
+   }
+  },
+  {
+   "name": "random_48",
+   "params": {
+    "tau": 1.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.5,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1634.281,
+    "rd": 275.111,
+    "volatility": 0.0594,
+    "idle_periods": 5,
+    "opponents": [
+     {
+      "rating": 1386.664,
+      "rd": 49.519,
+      "score": 0.0
+     },
+     {
+      "rating": 1947.857,
+      "rd": 73.187,
+      "score": 0.75
+     },
+     {
+      "rating": 1433.894,
+      "rd": 100.094,
+      "score": 0.25
+     },
+     {
+      "rating": 1886.558,
+      "rd": 347.197,
+      "score": 0.25
+     },
+     {
+      "rating": 1835.934,
+      "rd": 238.804,
+      "score": 0.75
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1572.829107929065,
+    "rd": 147.4122768884792,
+    "volatility": 0.05938014840775139
+   }
+  },
+  {
+   "name": "random_49",
+   "params": {
+    "tau": 0.2,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 3.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1248.968,
+    "rd": 169.617,
+    "volatility": 0.0209,
+    "idle_periods": 1,
+    "opponents": [
+     {
+      "rating": 1041.31,
+      "rd": 123.541,
+      "score": 0.1
+     }
+    ]
+   },
+   "expected": {
+    "rating": 1042.2703707481983,
+    "rd": 140.34895226901943,
+    "volatility": 0.02090011171931764
+   }
+  }
+ ],
+ "replay": [
+  {
+   "name": "multi_scope",
+   "params": {
+    "initial_rating": 1500.0,
+    "initial_rd": 350.0,
+    "initial_volatility": 0.06,
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "child_scope_initial_rd": 250.0,
+    "game_weight": 1.0,
+    "uncertain_rd_threshold": 110.0,
+    "club_rating_min_prompts": 20,
+    "prompt_lock_answers": 200,
+    "points_scale": 100.0,
+    "seed": {
+     "intercept": 1500.0,
+     "rd": 350.0,
+     "coefficients": {
+      "log_recall_mass": 40.0
+     }
+    }
+   },
+   "prompts": [
+    {
+     "id": 1,
+     "competition_id": 1,
+     "club_ids": [
+      11
+     ],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 2,
+     "competition_id": 1,
+     "club_ids": [
+      12
+     ],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 3,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 4,
+     "competition_id": 1,
+     "club_ids": [
+      12
+     ],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 5,
+     "competition_id": 1,
+     "club_ids": [
+      11
+     ],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 6,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 7,
+     "competition_id": 1,
+     "club_ids": [
+      11
+     ],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 8,
+     "competition_id": 1,
+     "club_ids": [
+      12
+     ],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 9,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 10,
+     "competition_id": 1,
+     "club_ids": [
+      12
+     ],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 11,
+     "competition_id": 1,
+     "club_ids": [
+      11
+     ],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 12,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 13,
+     "competition_id": 1,
+     "club_ids": [
+      11
+     ],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 14,
+     "competition_id": 1,
+     "club_ids": [
+      12
+     ],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 15,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 16,
+     "competition_id": 1,
+     "club_ids": [
+      12
+     ],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 17,
+     "competition_id": 1,
+     "club_ids": [
+      11
+     ],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 18,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 19,
+     "competition_id": 1,
+     "club_ids": [
+      11
+     ],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 20,
+     "competition_id": 1,
+     "club_ids": [
+      12
+     ],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 21,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    }
+   ],
+   "games": [
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 1,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 2,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 3,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 4,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 5,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 6,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 7,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 1,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 2,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 3,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 4,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 5,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 6,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 7,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 3,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 1,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 3,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 2,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 3,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 3,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 3,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 4,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 3,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 5,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 3,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 6,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 3,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 7,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 8,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 9,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 10,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 11,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 12,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 13,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 14,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 8,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 9,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 10,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 11,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 12,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 13,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 14,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 15,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 16,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 17,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 18,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 19,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 20,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 21,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 15,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 16,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 17,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 18,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 19,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 20,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 21,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 3,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 15,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 3,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 16,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 3,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 17,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 3,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 18,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 3,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 19,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 3,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 20,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 3,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 21,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    }
+   ],
+   "expected": {
+    "scopes": [
+     {
+      "user_id": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating": 1411.4932588751856,
+      "rd": 110.19102015796963,
+      "volatility": 0.059993801102926216,
+      "games": 21,
+      "last_period": "2030-01-03"
+     },
+     {
+      "user_id": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating": 1411.4932588751856,
+      "rd": 110.19102015796963,
+      "volatility": 0.059993801102926216,
+      "games": 21,
+      "last_period": "2030-01-03"
+     },
+     {
+      "user_id": 1,
+      "scope_type": "club",
+      "scope_id": 11,
+      "rating": 1379.8234950754538,
+      "rd": 174.10757674457707,
+      "volatility": 0.05999993501083834,
+      "games": 7,
+      "last_period": "2030-01-03"
+     },
+     {
+      "user_id": 1,
+      "scope_type": "club",
+      "scope_id": 12,
+      "rating": 1449.1884881320163,
+      "rd": 176.58098849362202,
+      "volatility": 0.05999964213759268,
+      "games": 7,
+      "last_period": "2030-01-03"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating": 1219.596671980803,
+      "rd": 114.9227872093637,
+      "volatility": 0.05999134867262233,
+      "games": 21,
+      "last_period": "2030-01-03"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating": 1219.596671980803,
+      "rd": 114.9227872093637,
+      "volatility": 0.05999134867262233,
+      "games": 21,
+      "last_period": "2030-01-03"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "club",
+      "scope_id": 11,
+      "rating": 1447.8905098572227,
+      "rd": 173.4489847724392,
+      "volatility": 0.06000063901429111,
+      "games": 7,
+      "last_period": "2030-01-03"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "club",
+      "scope_id": 12,
+      "rating": 1146.7981574752714,
+      "rd": 178.31725538185668,
+      "volatility": 0.059997313237575595,
+      "games": 7,
+      "last_period": "2030-01-03"
+     },
+     {
+      "user_id": 3,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating": 1299.5142475585153,
+      "rd": 135.95566611624966,
+      "volatility": 0.06000301670429578,
+      "games": 14,
+      "last_period": "2030-01-03"
+     },
+     {
+      "user_id": 3,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating": 1299.5142475585153,
+      "rd": 135.95566611624966,
+      "volatility": 0.06000301670429578,
+      "games": 14,
+      "last_period": "2030-01-03"
+     },
+     {
+      "user_id": 3,
+      "scope_type": "club",
+      "scope_id": 11,
+      "rating": 1280.2136075566214,
+      "rd": 197.82946217022078,
+      "volatility": 0.05999909583542582,
+      "games": 5,
+      "last_period": "2030-01-03"
+     },
+     {
+      "user_id": 3,
+      "scope_type": "club",
+      "scope_id": 12,
+      "rating": 1599.9474147696762,
+      "rd": 210.88179320544913,
+      "volatility": 0.05999858097452532,
+      "games": 4,
+      "last_period": "2030-01-03"
+     }
+    ],
+    "history": [
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1259.7147568340056,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.05999906278154157,
+      "games": 7,
+      "score_sum": 2.1
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1259.7147568340056,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.05999906278154157,
+      "games": 7,
+      "score_sum": 2.1
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 11,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1199.858887482286,
+      "rd_after": 229.653673356737,
+      "volatility_after": 0.06000055031247891,
+      "games": 3,
+      "score_sum": 0.25
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 12,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1225.667148581851,
+      "rd_after": 255.6353768552431,
+      "volatility_after": 0.06000049057092788,
+      "games": 2,
+      "score_sum": 0.1
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1143.1854161817148,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.060000949270344925,
+      "games": 7,
+      "score_sum": 1.1
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1143.1854161817148,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.060000949270344925,
+      "games": 7,
+      "score_sum": 1.1
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 11,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1250.6413383247323,
+      "rd_after": 229.653673356737,
+      "volatility_after": 0.059999793480927405,
+      "games": 3,
+      "score_sum": 0.5
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 12,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1225.667148581851,
+      "rd_after": 255.6353768552431,
+      "volatility_after": 0.06000049057092788,
+      "games": 2,
+      "score_sum": 0.1
+     },
+     {
+      "user_id": 3,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1166.4912843121729,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.060000513041286965,
+      "games": 7,
+      "score_sum": 1.2999999999999998
+     },
+     {
+      "user_id": 3,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1166.4912843121729,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.060000513041286965,
+      "games": 7,
+      "score_sum": 1.2999999999999998
+     },
+     {
+      "user_id": 3,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 11,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1210.0153776507752,
+      "rd_after": 229.653673356737,
+      "volatility_after": 0.060000387751303785,
+      "games": 3,
+      "score_sum": 0.3
+     },
+     {
+      "user_id": 3,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 12,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1452.1896111198944,
+      "rd_after": 255.6353768552431,
+      "volatility_after": 0.0599985111570432,
+      "games": 2,
+      "score_sum": 1.0
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1259.7147568340056,
+      "rd_before": 173.94190292311535,
+      "volatility_before": 0.05999906278154157,
+      "rating_after": 1372.481309620016,
+      "rd_after": 132.48397013792618,
+      "volatility_after": 0.05999902030921278,
+      "games": 7,
+      "score_sum": 4.25
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1259.7147568340056,
+      "rd_before": 173.94190292311535,
+      "volatility_before": 0.05999906278154157,
+      "rating_after": 1372.481309620016,
+      "rd_after": 132.48397013792618,
+      "volatility_after": 0.05999902030921278,
+      "games": 7,
+      "score_sum": 4.25
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 11,
+      "rating_before": 1199.858887482286,
+      "rd_before": 229.653673356737,
+      "volatility_before": 0.06000055031247891,
+      "rating_after": 1357.1941606788516,
+      "rd_after": 197.3791875096788,
+      "volatility_after": 0.06000213502575092,
+      "games": 2,
+      "score_sum": 1.75
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 12,
+      "rating_before": 1225.667148581851,
+      "rd_before": 255.6353768552431,
+      "volatility_before": 0.06000049057092788,
+      "rating_after": 1352.8930388555502,
+      "rd_after": 200.8690837504916,
+      "volatility_after": 0.05999964213759268,
+      "games": 3,
+      "score_sum": 1.75
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1143.1854161817148,
+      "rd_before": 173.94190292311535,
+      "volatility_before": 0.060000949270344925,
+      "rating_after": 1207.7236759829686,
+      "rd_after": 136.83751722787395,
+      "volatility_after": 0.05999764664961257,
+      "games": 7,
+      "score_sum": 2.8
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1143.1854161817148,
+      "rd_before": 173.94190292311535,
+      "volatility_before": 0.060000949270344925,
+      "rating_after": 1207.7236759829686,
+      "rd_after": 136.83751722787395,
+      "volatility_after": 0.05999764664961257,
+      "games": 7,
+      "score_sum": 2.8
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 11,
+      "rating_before": 1250.6413383247323,
+      "rd_before": 229.653673356737,
+      "volatility_before": 0.059999793480927405,
+      "rating_after": 1318.3483274174673,
+      "rd_after": 196.0785144963047,
+      "volatility_after": 0.05999836143365226,
+      "games": 2,
+      "score_sum": 1.25
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 12,
+      "rating_before": 1225.667148581851,
+      "rd_before": 255.6353768552431,
+      "volatility_before": 0.06000049057092788,
+      "rating_after": 1220.8024192781409,
+      "rd_after": 200.86907848767828,
+      "volatility_after": 0.05999810549276002,
+      "games": 3,
+      "score_sum": 0.9
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1372.481309620016,
+      "rd_before": 132.48397013792618,
+      "volatility_before": 0.05999902030921278,
+      "rating_after": 1411.4932588751856,
+      "rd_after": 110.19102015796963,
+      "volatility_after": 0.059993801102926216,
+      "games": 7,
+      "score_sum": 4.15
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1372.481309620016,
+      "rd_before": 132.48397013792618,
+      "volatility_before": 0.05999902030921278,
+      "rating_after": 1411.4932588751856,
+      "rd_after": 110.19102015796963,
+      "volatility_after": 0.059993801102926216,
+      "games": 7,
+      "score_sum": 4.15
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 11,
+      "rating_before": 1357.1941606788516,
+      "rd_before": 197.3791875096788,
+      "volatility_before": 0.06000213502575092,
+      "rating_after": 1379.8234950754538,
+      "rd_after": 174.10757674457707,
+      "volatility_after": 0.05999993501083834,
+      "games": 2,
+      "score_sum": 1.15
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 12,
+      "rating_before": 1352.8930388555502,
+      "rd_before": 200.8690837504916,
+      "volatility_before": 0.05999964213759268,
+      "rating_after": 1449.1884881320163,
+      "rd_after": 176.58098849362202,
+      "volatility_after": 0.05999964213759268,
+      "games": 2,
+      "score_sum": 1.75
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1207.7236759829686,
+      "rd_before": 136.83751722787395,
+      "volatility_before": 0.05999764664961257,
+      "rating_after": 1219.596671980803,
+      "rd_after": 114.9227872093637,
+      "volatility_after": 0.05999134867262233,
+      "games": 7,
+      "score_sum": 2.5
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1207.7236759829686,
+      "rd_before": 136.83751722787395,
+      "volatility_before": 0.05999764664961257,
+      "rating_after": 1219.596671980803,
+      "rd_after": 114.9227872093637,
+      "volatility_after": 0.05999134867262233,
+      "games": 7,
+      "score_sum": 2.5
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 11,
+      "rating_before": 1318.3483274174673,
+      "rd_before": 196.0785144963047,
+      "volatility_before": 0.05999836143365226,
+      "rating_after": 1447.8905098572227,
+      "rd_after": 173.4489847724392,
+      "volatility_after": 0.06000063901429111,
+      "games": 2,
+      "score_sum": 2.0
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 12,
+      "rating_before": 1220.8024192781409,
+      "rd_before": 200.86907848767828,
+      "volatility_before": 0.05999810549276002,
+      "rating_after": 1146.7981574752714,
+      "rd_after": 178.31725538185668,
+      "volatility_after": 0.059997313237575595,
+      "games": 2,
+      "score_sum": 0.1
+     },
+     {
+      "user_id": 3,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1166.4912843121729,
+      "rd_before": 174.25391759428106,
+      "volatility_before": 0.060000513041286965,
+      "rating_after": 1299.5142475585153,
+      "rd_after": 135.95566611624966,
+      "volatility_after": 0.06000301670429578,
+      "games": 7,
+      "score_sum": 3.9
+     },
+     {
+      "user_id": 3,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1166.4912843121729,
+      "rd_before": 174.25391759428106,
+      "volatility_before": 0.060000513041286965,
+      "rating_after": 1299.5142475585153,
+      "rd_after": 135.95566611624966,
+      "volatility_after": 0.06000301670429578,
+      "games": 7,
+      "score_sum": 3.9
+     },
+     {
+      "user_id": 3,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 11,
+      "rating_before": 1210.0153776507752,
+      "rd_before": 229.89008555603525,
+      "volatility_before": 0.060000387751303785,
+      "rating_after": 1280.2136075566214,
+      "rd_after": 197.82946217022078,
+      "volatility_after": 0.05999909583542582,
+      "games": 2,
+      "score_sum": 1.15
+     },
+     {
+      "user_id": 3,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 12,
+      "rating_before": 1452.1896111198944,
+      "rd_before": 255.8477689074264,
+      "volatility_before": 0.0599985111570432,
+      "rating_after": 1599.9474147696762,
+      "rd_after": 210.88179320544913,
+      "volatility_after": 0.05999858097452532,
+      "games": 2,
+      "score_sum": 2.0
+     }
+    ],
+    "prompts": [
+     {
+      "prompt_id": 1,
+      "rating": 1706.1118698399018,
+      "rd": 228.5666136704579,
+      "volatility": 0.060000014170502367,
+      "games": 3,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 2,
+      "rating": 1668.8096212259197,
+      "rd": 229.24254388428855,
+      "volatility": 0.05999978094157033,
+      "games": 3,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 3,
+      "rating": 1458.1903656713596,
+      "rd": 230.1067412756438,
+      "volatility": 0.05999820467677099,
+      "games": 3,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 4,
+      "rating": 1614.728414835432,
+      "rd": 231.15557719717967,
+      "volatility": 0.0599996201878987,
+      "games": 3,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 5,
+      "rating": 1691.7191608133598,
+      "rd": 232.3846326610598,
+      "volatility": 0.06000112577982254,
+      "games": 3,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 6,
+      "rating": 1592.2097314026819,
+      "rd": 233.7887098572753,
+      "volatility": 0.059999884286296705,
+      "games": 3,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 7,
+      "rating": 1703.4990841708473,
+      "rd": 228.0817804987359,
+      "volatility": 0.05999969562703552,
+      "games": 3,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 8,
+      "rating": 1460.6574211872753,
+      "rd": 241.39199279458396,
+      "volatility": 0.05999826872523014,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 9,
+      "rating": 1421.9943466951956,
+      "rd": 238.21582041019838,
+      "volatility": 0.05999821594781446,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 10,
+      "rating": 1133.7614566361535,
+      "rd": 235.25004775604395,
+      "volatility": 0.06000010016017249,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 11,
+      "rating": 1267.0894548987867,
+      "rd": 232.51327435044746,
+      "volatility": 0.05999848877402336,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 12,
+      "rating": 1287.3110887693404,
+      "rd": 230.0223744757933,
+      "volatility": 0.05999825508224518,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 13,
+      "rating": 992.4024142678686,
+      "rd": 227.79242284858483,
+      "volatility": 0.06000136093956979,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 14,
+      "rating": 1365.0708351410394,
+      "rd": 244.7583538587021,
+      "volatility": 0.05999854594093895,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 15,
+      "rating": 1482.455467577305,
+      "rd": 204.33016659323334,
+      "volatility": 0.05999785807560407,
+      "games": 3,
+      "locked": false,
+      "last_period": "2030-01-03",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 16,
+      "rating": 1169.6807111962462,
+      "rd": 201.66849434742718,
+      "volatility": 0.05999947886697121,
+      "games": 3,
+      "locked": false,
+      "last_period": "2030-01-03",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 17,
+      "rating": 980.1233413687404,
+      "rd": 199.2846853938118,
+      "volatility": 0.06000253458495437,
+      "games": 3,
+      "locked": false,
+      "last_period": "2030-01-03",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 18,
+      "rating": 1468.783408430826,
+      "rd": 197.1860427770952,
+      "volatility": 0.05999794514338915,
+      "games": 3,
+      "locked": false,
+      "last_period": "2030-01-03",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 19,
+      "rating": 1318.839521895535,
+      "rd": 195.37857593156315,
+      "volatility": 0.05999775812896476,
+      "games": 3,
+      "locked": false,
+      "last_period": "2030-01-03",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 20,
+      "rating": 1231.040839255994,
+      "rd": 193.86718165703246,
+      "volatility": 0.05999801811691399,
+      "games": 3,
+      "locked": false,
+      "last_period": "2030-01-03",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 21,
+      "rating": 1376.4289521752771,
+      "rd": 207.26092093269583,
+      "volatility": 0.05999803127635884,
+      "games": 3,
+      "locked": false,
+      "last_period": "2030-01-03",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     }
+    ]
+   }
+  },
+  {
+   "name": "child_scope_start",
+   "params": {
+    "initial_rating": 1500.0,
+    "initial_rd": 350.0,
+    "initial_volatility": 0.06,
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "child_scope_initial_rd": 200.0,
+    "game_weight": 1.5,
+    "uncertain_rd_threshold": 110.0,
+    "club_rating_min_prompts": 20,
+    "prompt_lock_answers": 200,
+    "points_scale": 100.0,
+    "seed": {
+     "intercept": 1500.0,
+     "rd": 350.0,
+     "coefficients": {
+      "log_recall_mass": 40.0
+     }
+    }
+   },
+   "prompts": [
+    {
+     "id": 1,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 2,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 3,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 4,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 5,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 6,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 7,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 8,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 9,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 10,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 11,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 12,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 13,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 14,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 15,
+     "competition_id": 1,
+     "club_ids": [
+      21
+     ],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 16,
+     "competition_id": 1,
+     "club_ids": [
+      21
+     ],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 17,
+     "competition_id": 1,
+     "club_ids": [
+      21
+     ],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 18,
+     "competition_id": 1,
+     "club_ids": [
+      21
+     ],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 19,
+     "competition_id": 1,
+     "club_ids": [
+      21
+     ],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 20,
+     "competition_id": 1,
+     "club_ids": [
+      21
+     ],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 21,
+     "competition_id": 1,
+     "club_ids": [
+      21
+     ],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    }
+   ],
+   "games": [
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 1,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 2,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 3,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 4,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 5,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 6,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 7,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 1,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 2,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 3,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 4,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 5,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 6,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 7,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 8,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 9,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 10,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 11,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 12,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 13,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 14,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 8,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 9,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 10,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 11,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 12,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 13,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 14,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 15,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 16,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 17,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 18,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 19,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 20,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 21,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 15,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 16,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 17,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 18,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 19,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 20,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 21,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    }
+   ],
+   "expected": {
+    "scopes": [
+     {
+      "user_id": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating": 1224.4996681002615,
+      "rd": 91.84312868163994,
+      "volatility": 0.05998790085219198,
+      "games": 21,
+      "last_period": "2030-01-03"
+     },
+     {
+      "user_id": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating": 1224.4996681002615,
+      "rd": 91.84312868163994,
+      "volatility": 0.05998790085219198,
+      "games": 21,
+      "last_period": "2030-01-03"
+     },
+     {
+      "user_id": 1,
+      "scope_type": "club",
+      "scope_id": 21,
+      "rating": 1197.0416228710935,
+      "rd": 128.2896661649925,
+      "volatility": 0.0599948149773851,
+      "games": 7,
+      "last_period": "2030-01-03"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating": 1302.1274777305948,
+      "rd": 92.11600420512276,
+      "volatility": 0.05998120070007962,
+      "games": 21,
+      "last_period": "2030-01-03"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating": 1302.1274777305948,
+      "rd": 92.11600420512276,
+      "volatility": 0.05998120070007962,
+      "games": 21,
+      "last_period": "2030-01-03"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "club",
+      "scope_id": 21,
+      "rating": 1311.6904430746965,
+      "rd": 126.9719904129619,
+      "volatility": 0.059994029849526356,
+      "games": 7,
+      "last_period": "2030-01-03"
+     }
+    ],
+    "history": [
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1339.744617096892,
+      "rd_after": 148.2569308109744,
+      "volatility_after": 0.05999796935078306,
+      "games": 7,
+      "score_sum": 2.9
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1339.744617096892,
+      "rd_after": 148.2569308109744,
+      "volatility_after": 0.05999796935078306,
+      "games": 7,
+      "score_sum": 2.9
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1263.5543712272215,
+      "rd_after": 148.2569308109744,
+      "volatility_after": 0.05999878863086583,
+      "games": 7,
+      "score_sum": 2.3
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1263.5543712272215,
+      "rd_after": 148.2569308109744,
+      "volatility_after": 0.05999878863086583,
+      "games": 7,
+      "score_sum": 2.3
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1339.744617096892,
+      "rd_before": 148.2569308109744,
+      "volatility_before": 0.05999796935078306,
+      "rating_after": 1253.3680161417428,
+      "rd_after": 109.45234829981456,
+      "volatility_after": 0.05999575868733548,
+      "games": 7,
+      "score_sum": 1.85
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1339.744617096892,
+      "rd_before": 148.2569308109744,
+      "volatility_before": 0.05999796935078306,
+      "rating_after": 1253.3680161417428,
+      "rd_after": 109.45234829981456,
+      "volatility_after": 0.05999575868733548,
+      "games": 7,
+      "score_sum": 1.85
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1263.5543712272215,
+      "rd_before": 148.2569308109744,
+      "volatility_before": 0.05999878863086583,
+      "rating_after": 1291.5015512059713,
+      "rd_after": 110.79070570438954,
+      "volatility_after": 0.059991248510082654,
+      "games": 7,
+      "score_sum": 3.0
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1263.5543712272215,
+      "rd_before": 148.2569308109744,
+      "volatility_before": 0.05999878863086583,
+      "rating_after": 1291.5015512059713,
+      "rd_after": 110.79070570438954,
+      "volatility_after": 0.059991248510082654,
+      "games": 7,
+      "score_sum": 3.0
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1253.3680161417428,
+      "rd_before": 109.45234829981456,
+      "volatility_before": 0.05999575868733548,
+      "rating_after": 1224.4996681002615,
+      "rd_after": 91.84312868163994,
+      "volatility_after": 0.05998790085219198,
+      "games": 7,
+      "score_sum": 1.95
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1253.3680161417428,
+      "rd_before": 109.45234829981456,
+      "volatility_before": 0.05999575868733548,
+      "rating_after": 1224.4996681002615,
+      "rd_after": 91.84312868163994,
+      "volatility_after": 0.05998790085219198,
+      "games": 7,
+      "score_sum": 1.95
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 21,
+      "rating_before": 1253.3680161417428,
+      "rd_before": 200.0,
+      "volatility_before": 0.06,
+      "rating_after": 1197.0416228710935,
+      "rd_after": 128.2896661649925,
+      "volatility_after": 0.0599948149773851,
+      "games": 7,
+      "score_sum": 1.95
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1291.5015512059713,
+      "rd_before": 110.79070570438954,
+      "volatility_before": 0.059991248510082654,
+      "rating_after": 1302.1274777305948,
+      "rd_after": 92.11600420512276,
+      "volatility_after": 0.05998120070007962,
+      "games": 7,
+      "score_sum": 3.0
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1291.5015512059713,
+      "rd_before": 110.79070570438954,
+      "volatility_before": 0.059991248510082654,
+      "rating_after": 1302.1274777305948,
+      "rd_after": 92.11600420512276,
+      "volatility_after": 0.05998120070007962,
+      "games": 7,
+      "score_sum": 3.0
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 21,
+      "rating_before": 1291.5015512059713,
+      "rd_before": 200.0,
+      "volatility_before": 0.06,
+      "rating_after": 1311.6904430746965,
+      "rd_after": 126.9719904129619,
+      "volatility_after": 0.059994029849526356,
+      "games": 7,
+      "score_sum": 3.0
+     }
+    ],
+    "prompts": [
+     {
+      "prompt_id": 1,
+      "rating": 1655.8090359962227,
+      "rd": 228.56661367045785,
+      "volatility": 0.05999935671356362,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 2,
+      "rating": 1572.6681191361156,
+      "rd": 229.24254388428855,
+      "volatility": 0.059998734149128964,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 3,
+      "rating": 1611.139422347394,
+      "rd": 230.1067412756438,
+      "volatility": 0.05999932181536844,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 4,
+      "rating": 1527.2653809448425,
+      "rd": 231.15557719717967,
+      "volatility": 0.05999871409677954,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 5,
+      "rating": 1676.1199391590842,
+      "rd": 232.38463266105987,
+      "volatility": 0.060000851669473936,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 6,
+      "rating": 1465.9033845305655,
+      "rd": 233.7887098572753,
+      "volatility": 0.059998589053823055,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 7,
+      "rating": 1257.701141663566,
+      "rd": 228.0817804987359,
+      "volatility": 0.05999919751366861,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 8,
+      "rating": 1367.0393574428747,
+      "rd": 196.23193858977453,
+      "volatility": 0.059997865579728575,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 9,
+      "rating": 1406.4224263328633,
+      "rd": 194.03381612404874,
+      "volatility": 0.05999770299792447,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 10,
+      "rating": 1328.3399110008445,
+      "rd": 192.16289139610484,
+      "volatility": 0.059997817630353244,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 11,
+      "rating": 1365.9812091801023,
+      "rd": 190.62707862449668,
+      "volatility": 0.05999766780081191,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 12,
+      "rating": 1570.4546555864954,
+      "rd": 189.43269909506571,
+      "volatility": 0.05999885096544929,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 13,
+      "rating": 1312.6073396942083,
+      "rd": 188.58455667684572,
+      "volatility": 0.059997661816946685,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 14,
+      "rating": 1571.9466626773376,
+      "rd": 198.7476701757177,
+      "volatility": 0.059998087969944915,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 15,
+      "rating": 1556.2809994008678,
+      "rd": 195.13162485848014,
+      "volatility": 0.05999807616692002,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-03",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 16,
+      "rating": 1380.8239787728533,
+      "rd": 192.20349094948642,
+      "volatility": 0.05999772044282442,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-03",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 17,
+      "rating": 1522.3338887972668,
+      "rd": 189.61789262206446,
+      "volatility": 0.05999805779791561,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-03",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 18,
+      "rating": 1513.4535249353144,
+      "rd": 187.3869646080827,
+      "volatility": 0.05999811210112035,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-03",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 19,
+      "rating": 1252.707745624943,
+      "rd": 185.5208423994907,
+      "volatility": 0.05999792248264722,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-03",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 20,
+      "rating": 1220.9384899750041,
+      "rd": 184.02775924297976,
+      "volatility": 0.05999797974342359,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-03",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 21,
+      "rating": 1277.7396355806266,
+      "rd": 198.3880675642114,
+      "volatility": 0.05999864497924845,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-03",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     }
+    ]
+   }
+  },
+  {
+   "name": "idle_gap",
+   "params": {
+    "initial_rating": 1500.0,
+    "initial_rd": 350.0,
+    "initial_volatility": 0.06,
+    "tau": 0.3,
+    "volatility_epsilon": 1e-06,
+    "child_scope_initial_rd": 250.0,
+    "game_weight": 1.0,
+    "uncertain_rd_threshold": 110.0,
+    "club_rating_min_prompts": 20,
+    "prompt_lock_answers": 200,
+    "points_scale": 100.0,
+    "seed": {
+     "intercept": 1500.0,
+     "rd": 350.0,
+     "coefficients": {
+      "log_recall_mass": 40.0
+     }
+    }
+   },
+   "prompts": [
+    {
+     "id": 1,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 2,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 3,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 4,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 5,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 6,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 7,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 8,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 9,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 10,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 11,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 12,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 13,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 14,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 15,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 16,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 17,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 18,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 19,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 20,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 21,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    }
+   ],
+   "games": [
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 1,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 2,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 3,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 4,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 5,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 6,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 7,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-21",
+     "attempt": 1,
+     "prompt_id": 8,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-21",
+     "attempt": 1,
+     "prompt_id": 9,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-21",
+     "attempt": 1,
+     "prompt_id": 10,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-21",
+     "attempt": 1,
+     "prompt_id": 11,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-21",
+     "attempt": 1,
+     "prompt_id": 12,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-21",
+     "attempt": 1,
+     "prompt_id": 13,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-21",
+     "attempt": 1,
+     "prompt_id": 14,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 15,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 16,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 17,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 18,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 19,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 20,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 21,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 1,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 2,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 3,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 4,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 5,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 6,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 7,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 8,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 9,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 10,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 11,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 12,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 13,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 14,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    }
+   ],
+   "expected": {
+    "scopes": [
+     {
+      "user_id": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating": 1456.6822207866087,
+      "rd": 125.93530581801926,
+      "volatility": 0.059997570970242525,
+      "games": 14,
+      "last_period": "2030-01-21"
+     },
+     {
+      "user_id": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating": 1456.6822207866087,
+      "rd": 125.93530581801926,
+      "volatility": 0.059997570970242525,
+      "games": 14,
+      "last_period": "2030-01-21"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating": 1511.9660644066216,
+      "rd": 107.60673025351814,
+      "volatility": 0.059994638094759606,
+      "games": 21,
+      "last_period": "2030-01-03"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating": 1511.9660644066216,
+      "rd": 107.60673025351814,
+      "volatility": 0.059994638094759606,
+      "games": 21,
+      "last_period": "2030-01-03"
+     }
+    ],
+    "history": [
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1387.8970315515253,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.05999922173106337,
+      "games": 7,
+      "score_sum": 3.2
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1387.8970315515253,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.05999922173106337,
+      "games": 7,
+      "score_sum": 3.2
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1463.6411029755145,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.05999911197978924,
+      "games": 7,
+      "score_sum": 3.85
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1463.6411029755145,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.05999911197978924,
+      "games": 7,
+      "score_sum": 3.85
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1463.6411029755145,
+      "rd_before": 173.94190292311535,
+      "volatility_before": 0.05999911197978924,
+      "rating_after": 1489.3537576240888,
+      "rd_after": 127.30575059914901,
+      "volatility_after": 0.05999696532126811,
+      "games": 7,
+      "score_sum": 4.0
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1463.6411029755145,
+      "rd_before": 173.94190292311535,
+      "volatility_before": 0.05999911197978924,
+      "rating_after": 1489.3537576240888,
+      "rd_after": 127.30575059914901,
+      "volatility_after": 0.05999696532126811,
+      "games": 7,
+      "score_sum": 4.0
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1489.3537576240888,
+      "rd_before": 127.30575059914901,
+      "volatility_before": 0.05999696532126811,
+      "rating_after": 1511.9660644066216,
+      "rd_after": 107.60673025351814,
+      "volatility_after": 0.059994638094759606,
+      "games": 7,
+      "score_sum": 4.6
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1489.3537576240888,
+      "rd_before": 127.30575059914901,
+      "volatility_before": 0.05999696532126811,
+      "rating_after": 1511.9660644066216,
+      "rd_after": 107.60673025351814,
+      "volatility_after": 0.059994638094759606,
+      "games": 7,
+      "score_sum": 4.6
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-21",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1387.8970315515253,
+      "rd_before": 179.77735849588296,
+      "volatility_before": 0.05999922173106337,
+      "rating_after": 1456.6822207866087,
+      "rd_after": 125.93530581801926,
+      "volatility_after": 0.059997570970242525,
+      "games": 7,
+      "score_sum": 4.5
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-21",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1387.8970315515253,
+      "rd_before": 179.77735849588296,
+      "volatility_before": 0.05999922173106337,
+      "rating_after": 1456.6822207866087,
+      "rd_after": 125.93530581801926,
+      "volatility_after": 0.059997570970242525,
+      "games": 7,
+      "score_sum": 4.5
+     }
+    ],
+    "prompts": [
+     {
+      "prompt_id": 1,
+      "rating": 1281.0487169308356,
+      "rd": 241.5110842920019,
+      "volatility": 0.05999929790250166,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 2,
+      "rating": 1557.6266026894305,
+      "rd": 240.11588646637458,
+      "volatility": 0.05999949754772077,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 3,
+      "rating": 1442.605542144819,
+      "rd": 235.50836418204813,
+      "volatility": 0.059999046239547806,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 4,
+      "rating": 1448.039945088608,
+      "rd": 237.50372263477615,
+      "volatility": 0.05999953935883281,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 5,
+      "rating": 1317.5519944077857,
+      "rd": 247.93172971426083,
+      "volatility": 0.05999942728110624,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 6,
+      "rating": 1273.4000825789017,
+      "rd": 237.95325535589706,
+      "volatility": 0.05999935098860508,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 7,
+      "rating": 1698.256259351933,
+      "rd": 239.27953047193265,
+      "volatility": 0.0599994547186196,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 8,
+      "rating": 1256.92801697009,
+      "rd": 218.18377337253116,
+      "volatility": 0.05999908625167504,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-21",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 9,
+      "rating": 1308.1182845128192,
+      "rd": 219.26552062450594,
+      "volatility": 0.05999908167500183,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-21",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 10,
+      "rating": 1590.699010970547,
+      "rd": 224.64397165954898,
+      "volatility": 0.059999251021010176,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-21",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 11,
+      "rating": 1359.0410646770777,
+      "rd": 222.04207894497114,
+      "volatility": 0.05999991263906482,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-21",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 12,
+      "rating": 1219.5180468192618,
+      "rd": 224.0794136497077,
+      "volatility": 0.059999054220513576,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-21",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 13,
+      "rating": 1342.7941178065587,
+      "rd": 221.021999378441,
+      "volatility": 0.05999903943141042,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-21",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 14,
+      "rating": 1386.65290289544,
+      "rd": 215.83732302163367,
+      "volatility": 0.05999884780611713,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-21",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 15,
+      "rating": 1377.2944927569786,
+      "rd": 290.8322142917231,
+      "volatility": 0.05999966793379822,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 16,
+      "rating": 1608.3812150251736,
+      "rd": 291.29542990827883,
+      "volatility": 0.06,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 17,
+      "rating": 1267.1434547153742,
+      "rd": 291.8849157593117,
+      "volatility": 0.05999980793341721,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 18,
+      "rating": 1549.3286612131153,
+      "rd": 292.59622274276575,
+      "volatility": 0.05999991965460252,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 19,
+      "rating": 1237.8467209369473,
+      "rd": 293.4240319293613,
+      "volatility": 0.05999979007356082,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 20,
+      "rating": 1556.7094383569518,
+      "rd": 294.36222316285324,
+      "volatility": 0.06000010845799354,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 21,
+      "rating": 1309.9814827656153,
+      "rd": 290.4987906277339,
+      "volatility": 0.05999984746689677,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     }
+    ]
+   }
+  },
+  {
+   "name": "two_competitions_one_date",
+   "params": {
+    "initial_rating": 1500.0,
+    "initial_rd": 350.0,
+    "initial_volatility": 0.06,
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "child_scope_initial_rd": 250.0,
+    "game_weight": 1.0,
+    "uncertain_rd_threshold": 110.0,
+    "club_rating_min_prompts": 20,
+    "prompt_lock_answers": 200,
+    "points_scale": 100.0,
+    "seed": {
+     "intercept": 1500.0,
+     "rd": 350.0,
+     "coefficients": {
+      "log_recall_mass": 40.0
+     }
+    }
+   },
+   "prompts": [
+    {
+     "id": 1,
+     "competition_id": 2,
+     "club_ids": [
+      31
+     ],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 2,
+     "competition_id": 2,
+     "club_ids": [
+      31
+     ],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 3,
+     "competition_id": 2,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 4,
+     "competition_id": 2,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 5,
+     "competition_id": 2,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 6,
+     "competition_id": 2,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 7,
+     "competition_id": 2,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 8,
+     "competition_id": 1,
+     "club_ids": [
+      31
+     ],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 9,
+     "competition_id": 1,
+     "club_ids": [
+      31
+     ],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 10,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 11,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 12,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 13,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 14,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 15,
+     "competition_id": 1,
+     "club_ids": [
+      31
+     ],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 16,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 17,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 18,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 19,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 20,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 21,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    }
+   ],
+   "games": [
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 8,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 9,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 10,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 11,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 12,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 13,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 14,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 2,
+     "prompt_id": 1,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 2,
+     "prompt_id": 2,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 2,
+     "prompt_id": 3,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 2,
+     "prompt_id": 4,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 2,
+     "prompt_id": 5,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 2,
+     "prompt_id": 6,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 2,
+     "prompt_id": 7,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 1,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 2,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 3,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 4,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 5,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 6,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 7,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 15,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 16,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 17,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 18,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 19,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 20,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 21,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    }
+   ],
+   "expected": {
+    "scopes": [
+     {
+      "user_id": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating": 1269.5259668905394,
+      "rd": 109.98086162530576,
+      "volatility": 0.05999344941315323,
+      "games": 21,
+      "last_period": "2030-01-02"
+     },
+     {
+      "user_id": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating": 1271.5798595882218,
+      "rd": 130.7683112282718,
+      "volatility": 0.059994791846459276,
+      "games": 14,
+      "last_period": "2030-01-02"
+     },
+     {
+      "user_id": 1,
+      "scope_type": "competition",
+      "scope_id": 2,
+      "rating": 1323.8058941927654,
+      "rd": 173.94190292311535,
+      "volatility": 0.05999833914110254,
+      "games": 7,
+      "last_period": "2030-01-01"
+     },
+     {
+      "user_id": 1,
+      "scope_type": "club",
+      "scope_id": 31,
+      "rating": 1357.6902433839423,
+      "rd": 194.71118034733087,
+      "volatility": 0.059997778346493745,
+      "games": 5,
+      "last_period": "2030-01-02"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating": 1352.938229355838,
+      "rd": 173.94190292311535,
+      "volatility": 0.05999808384839008,
+      "games": 7,
+      "last_period": "2030-01-01"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "competition",
+      "scope_id": 2,
+      "rating": 1352.938229355838,
+      "rd": 173.94190292311535,
+      "volatility": 0.05999808384839008,
+      "games": 7,
+      "last_period": "2030-01-01"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "club",
+      "scope_id": 31,
+      "rating": 1429.1917846114716,
+      "rd": 254.4564515742394,
+      "volatility": 0.059998568837217665,
+      "games": 2,
+      "last_period": "2030-01-01"
+     }
+    ],
+    "history": [
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1347.1117623232235,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.05999813122541045,
+      "games": 7,
+      "score_sum": 2.85
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1347.1117623232235,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.05999813122541045,
+      "games": 7,
+      "score_sum": 2.85
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 31,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1491.5356602779357,
+      "rd_after": 254.4564515742394,
+      "volatility_after": 0.059998434789682385,
+      "games": 2,
+      "score_sum": 1.1
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 2,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1347.1117623232235,
+      "rd_before": 173.94190292311535,
+      "volatility_before": 0.05999813122541045,
+      "rating_after": 1312.2762599773857,
+      "rd_after": 131.37463586687267,
+      "volatility_after": 0.059998100415863106,
+      "games": 14,
+      "score_sum": 5.5
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 2,
+      "scope_type": "competition",
+      "scope_id": 2,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1323.8058941927654,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.05999833914110254,
+      "games": 7,
+      "score_sum": 2.65
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 2,
+      "scope_type": "club",
+      "scope_id": 31,
+      "rating_before": 1491.5356602779357,
+      "rd_before": 254.4564515742394,
+      "volatility_before": 0.059998434789682385,
+      "rating_after": 1429.1783504121915,
+      "rd_after": 209.76912572802706,
+      "volatility_after": 0.05999800626837642,
+      "games": 4,
+      "score_sum": 1.85
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1352.938229355838,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.05999808384839008,
+      "games": 7,
+      "score_sum": 2.9
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 2,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1352.938229355838,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.05999808384839008,
+      "games": 7,
+      "score_sum": 2.9
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 31,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1429.1917846114716,
+      "rd_after": 254.4564515742394,
+      "volatility_after": 0.059998568837217665,
+      "games": 2,
+      "score_sum": 0.85
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1312.2762599773857,
+      "rd_before": 131.37463586687267,
+      "volatility_before": 0.059998100415863106,
+      "rating_after": 1269.5259668905394,
+      "rd_after": 109.98086162530576,
+      "volatility_after": 0.05999344941315323,
+      "games": 7,
+      "score_sum": 2.0
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1347.1117623232235,
+      "rd_before": 173.94190292311535,
+      "volatility_before": 0.05999813122541045,
+      "rating_after": 1271.5798595882218,
+      "rd_after": 130.7683112282718,
+      "volatility_after": 0.059994791846459276,
+      "games": 7,
+      "score_sum": 2.0
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 31,
+      "rating_before": 1429.1783504121915,
+      "rd_before": 209.76912572802706,
+      "volatility_before": 0.05999800626837642,
+      "rating_after": 1357.6902433839423,
+      "rd_after": 194.71118034733087,
+      "volatility_after": 0.059997778346493745,
+      "games": 1,
+      "score_sum": 0.0
+     }
+    ],
+    "prompts": [
+     {
+      "prompt_id": 1,
+      "rating": 1692.5100341598338,
+      "rd": 254.1475159562013,
+      "volatility": 0.06000015809149215,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 2,
+      "rating": 1333.218576439778,
+      "rd": 254.76651654233618,
+      "volatility": 0.059998641395805956,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 3,
+      "rating": 1510.7333355306785,
+      "rd": 255.55652014259954,
+      "volatility": 0.05999878065137743,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 4,
+      "rating": 1614.9386682211382,
+      "rd": 256.5131877667271,
+      "volatility": 0.05999995854853788,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 5,
+      "rating": 1427.2978908444247,
+      "rd": 257.6312744363216,
+      "volatility": 0.05999859978820805,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 6,
+      "rating": 1352.579062314085,
+      "rd": 258.90466507925714,
+      "volatility": 0.059998499076323535,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 7,
+      "rating": 1565.8232333992148,
+      "rd": 253.7029224946884,
+      "volatility": 0.05999872620208182,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 8,
+      "rating": 1589.0453765448187,
+      "rd": 290.8322142917231,
+      "volatility": 0.05999957366506478,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 9,
+      "rating": 1281.5720725226429,
+      "rd": 291.29542990827883,
+      "volatility": 0.059999498167280944,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 10,
+      "rating": 1431.2100490369442,
+      "rd": 291.8849157593117,
+      "volatility": 0.059999014001420964,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 11,
+      "rating": 1549.3286612131153,
+      "rd": 292.59622274276575,
+      "volatility": 0.0599997768193964,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 12,
+      "rating": 1486.5488364483308,
+      "rd": 293.4240319293613,
+      "volatility": 0.05999944654002536,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 13,
+      "rating": 1506.650427623268,
+      "rd": 294.36222316285324,
+      "volatility": 0.059999780541155484,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 14,
+      "rating": 1391.2374980927584,
+      "rd": 290.4987906277339,
+      "volatility": 0.059999093957919164,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 15,
+      "rating": 1576.8793679101964,
+      "rd": 265.58729732607065,
+      "volatility": 0.05999909809223281,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 16,
+      "rating": 1388.0031828841982,
+      "rd": 264.4142790207933,
+      "volatility": 0.05999860076388334,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 17,
+      "rating": 1201.8480941557668,
+      "rd": 263.51301869716826,
+      "volatility": 0.0599996251757132,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 18,
+      "rating": 1487.5049757928848,
+      "rd": 262.8927517759783,
+      "volatility": 0.05999886472667775,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 19,
+      "rating": 1528.068393863721,
+      "rd": 262.55985374378173,
+      "volatility": 0.05999931270518076,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 20,
+      "rating": 1429.9374965834043,
+      "rd": 262.51775254966907,
+      "volatility": 0.05999876529467218,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 21,
+      "rating": 1553.9580326713947,
+      "rd": 267.02010731223345,
+      "volatility": 0.059998850031215176,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     }
+    ]
+   }
+  },
+  {
+   "name": "low_threshold_lock",
+   "params": {
+    "initial_rating": 1500.0,
+    "initial_rd": 350.0,
+    "initial_volatility": 0.06,
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "child_scope_initial_rd": 250.0,
+    "game_weight": 1.0,
+    "uncertain_rd_threshold": 110.0,
+    "club_rating_min_prompts": 20,
+    "prompt_lock_answers": 3,
+    "points_scale": 100.0,
+    "seed": {
+     "intercept": 1500.0,
+     "rd": 350.0,
+     "coefficients": {
+      "log_recall_mass": 40.0
+     }
+    }
+   },
+   "prompts": [
+    {
+     "id": 1,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 2,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 3,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 4,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 5,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 6,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 7,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    }
+   ],
+   "games": [
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 1,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 2,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 3,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 4,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 5,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 6,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 7,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 1,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 2,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 3,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 4,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 5,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 6,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 7,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 3,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 1,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 3,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 2,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 3,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 3,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 3,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 4,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 3,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 5,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 3,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 6,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 3,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 7,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 1,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 2,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 3,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 4,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 5,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 6,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 7,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 4,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 1,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 4,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 2,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 4,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 3,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 4,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 4,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 4,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 5,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 4,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 6,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 4,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 7,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    }
+   ],
+   "expected": {
+    "scopes": [
+     {
+      "user_id": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating": 1314.224040239854,
+      "rd": 125.90535990741473,
+      "volatility": 0.05999250402314483,
+      "games": 14,
+      "last_period": "2030-01-02"
+     },
+     {
+      "user_id": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating": 1314.224040239854,
+      "rd": 125.90535990741473,
+      "volatility": 0.05999250402314483,
+      "games": 14,
+      "last_period": "2030-01-02"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating": 1335.4588282579946,
+      "rd": 173.94190292311535,
+      "volatility": 0.05999823150169577,
+      "games": 7,
+      "last_period": "2030-01-01"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating": 1335.4588282579946,
+      "rd": 173.94190292311535,
+      "volatility": 0.05999823150169577,
+      "games": 7,
+      "last_period": "2030-01-01"
+     },
+     {
+      "user_id": 3,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating": 1387.8970315515253,
+      "rd": 173.94190292311535,
+      "volatility": 0.05999783824088535,
+      "games": 7,
+      "last_period": "2030-01-01"
+     },
+     {
+      "user_id": 3,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating": 1387.8970315515253,
+      "rd": 173.94190292311535,
+      "volatility": 0.05999783824088535,
+      "games": 7,
+      "last_period": "2030-01-01"
+     },
+     {
+      "user_id": 4,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating": 1424.0429296717352,
+      "rd": 155.62040019111865,
+      "volatility": 0.05999749028263842,
+      "games": 7,
+      "last_period": "2030-01-02"
+     },
+     {
+      "user_id": 4,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating": 1424.0429296717352,
+      "rd": 155.62040019111865,
+      "volatility": 0.05999749028263842,
+      "games": 7,
+      "last_period": "2030-01-02"
+     }
+    ],
+    "history": [
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1358.7646963884526,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.059998038312093584,
+      "games": 7,
+      "score_sum": 2.95
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1358.7646963884526,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.059998038312093584,
+      "games": 7,
+      "score_sum": 2.95
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1335.4588282579946,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.05999823150169577,
+      "games": 7,
+      "score_sum": 2.75
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1335.4588282579946,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.05999823150169577,
+      "games": 7,
+      "score_sum": 2.75
+     },
+     {
+      "user_id": 3,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1387.8970315515253,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.05999783824088535,
+      "games": 7,
+      "score_sum": 3.2
+     },
+     {
+      "user_id": 3,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1387.8970315515253,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.05999783824088535,
+      "games": 7,
+      "score_sum": 3.2
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1358.7646963884526,
+      "rd_before": 173.94190292311535,
+      "volatility_before": 0.059998038312093584,
+      "rating_after": 1314.224040239854,
+      "rd_after": 125.90535990741473,
+      "volatility_after": 0.05999250402314483,
+      "games": 7,
+      "score_sum": 1.85
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1358.7646963884526,
+      "rd_before": 173.94190292311535,
+      "volatility_before": 0.059998038312093584,
+      "rating_after": 1314.224040239854,
+      "rd_after": 125.90535990741473,
+      "volatility_after": 0.05999250402314483,
+      "games": 7,
+      "score_sum": 1.85
+     },
+     {
+      "user_id": 4,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1424.0429296717352,
+      "rd_after": 155.62040019111865,
+      "volatility_after": 0.05999749028263842,
+      "games": 7,
+      "score_sum": 2.75
+     },
+     {
+      "user_id": 4,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1424.0429296717352,
+      "rd_after": 155.62040019111865,
+      "volatility_after": 0.05999749028263842,
+      "games": 7,
+      "score_sum": 2.75
+     }
+    ],
+    "prompts": [
+     {
+      "prompt_id": 1,
+      "rating": 1223.2046649405827,
+      "rd": 228.5666136704579,
+      "volatility": 0.05999936828504424,
+      "games": 3,
+      "locked": true,
+      "last_period": "2030-01-01",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 2,
+      "rating": 1344.9645615550007,
+      "rd": 229.24254388428855,
+      "volatility": 0.059998254769359,
+      "games": 3,
+      "locked": true,
+      "last_period": "2030-01-01",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 3,
+      "rating": 1641.7292336826008,
+      "rd": 230.1067412756438,
+      "volatility": 0.05999969752067281,
+      "games": 3,
+      "locked": true,
+      "last_period": "2030-01-01",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 4,
+      "rating": 1429.5125783612425,
+      "rd": 231.15557719717967,
+      "volatility": 0.05999819245151002,
+      "games": 3,
+      "locked": true,
+      "last_period": "2030-01-01",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 5,
+      "rating": 1608.523311990555,
+      "rd": 232.3846326610598,
+      "volatility": 0.05999981645355053,
+      "games": 3,
+      "locked": true,
+      "last_period": "2030-01-01",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 6,
+      "rating": 1613.2607892147012,
+      "rd": 233.7887098572753,
+      "volatility": 0.060000184304336256,
+      "games": 3,
+      "locked": true,
+      "last_period": "2030-01-01",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 7,
+      "rating": 1683.4632215862503,
+      "rd": 228.0817804987359,
+      "volatility": 0.05999944188987482,
+      "games": 3,
+      "locked": true,
+      "last_period": "2030-01-01",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     }
+    ]
+   }
+  },
+  {
+   "name": "abandoned_attempt",
+   "params": {
+    "initial_rating": 1500.0,
+    "initial_rd": 350.0,
+    "initial_volatility": 0.06,
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "child_scope_initial_rd": 250.0,
+    "game_weight": 1.0,
+    "uncertain_rd_threshold": 110.0,
+    "club_rating_min_prompts": 20,
+    "prompt_lock_answers": 200,
+    "points_scale": 100.0,
+    "seed": {
+     "intercept": 1500.0,
+     "rd": 350.0,
+     "coefficients": {
+      "log_recall_mass": 40.0
+     }
+    }
+   },
+   "prompts": [
+    {
+     "id": 1,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 2,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 3,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 4,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 5,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 6,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 7,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 8,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 9,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 10,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 11,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 12,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 13,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 14,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    }
+   ],
+   "games": [
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 1,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 2,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 3,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 4,
+     "points": 0,
+     "rated": true,
+     "unanswered": true
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 5,
+     "points": 0,
+     "rated": true,
+     "unanswered": true
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 6,
+     "points": 0,
+     "rated": true,
+     "unanswered": true
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 7,
+     "points": 0,
+     "rated": true,
+     "unanswered": true
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 1,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 2,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 3,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 4,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 5,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 6,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 7,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 8,
+     "points": 75,
+     "rated": false,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 9,
+     "points": 10,
+     "rated": false,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 10,
+     "points": 50,
+     "rated": false,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 11,
+     "points": 75,
+     "rated": false,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 12,
+     "points": 25,
+     "rated": false,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 13,
+     "points": 0,
+     "rated": false,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 14,
+     "points": 75,
+     "rated": false,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 8,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 9,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 10,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 11,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 12,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 13,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 14,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    }
+   ],
+   "expected": {
+    "scopes": [
+     {
+      "user_id": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating": 1207.2765535404747,
+      "rd": 173.94190292311535,
+      "volatility": 0.0599998205485534,
+      "games": 7,
+      "last_period": "2030-01-01"
+     },
+     {
+      "user_id": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating": 1207.2765535404747,
+      "rd": 173.94190292311535,
+      "volatility": 0.0599998205485534,
+      "games": 7,
+      "last_period": "2030-01-01"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating": 1264.7088179773518,
+      "rd": 131.07919284546261,
+      "volatility": 0.05999405834454245,
+      "games": 14,
+      "last_period": "2030-01-02"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating": 1264.7088179773518,
+      "rd": 131.07919284546261,
+      "volatility": 0.05999405834454245,
+      "games": 14,
+      "last_period": "2030-01-02"
+     }
+    ],
+    "history": [
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1207.2765535404747,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.0599998205485534,
+      "games": 7,
+      "score_sum": 1.65
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1207.2765535404747,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.0599998205485534,
+      "games": 7,
+      "score_sum": 1.65
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1323.8058941927654,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.05999833914110254,
+      "games": 7,
+      "score_sum": 2.65
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1323.8058941927654,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.05999833914110254,
+      "games": 7,
+      "score_sum": 2.65
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1323.8058941927654,
+      "rd_before": 173.94190292311535,
+      "volatility_before": 0.05999833914110254,
+      "rating_after": 1264.7088179773518,
+      "rd_after": 131.07919284546261,
+      "volatility_after": 0.05999405834454245,
+      "games": 7,
+      "score_sum": 2.1
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1323.8058941927654,
+      "rd_before": 173.94190292311535,
+      "volatility_before": 0.05999833914110254,
+      "rating_after": 1264.7088179773518,
+      "rd_after": 131.07919284546261,
+      "volatility_after": 0.05999405834454245,
+      "games": 7,
+      "score_sum": 2.1
+     }
+    ],
+    "prompts": [
+     {
+      "prompt_id": 1,
+      "rating": 1431.3011807500056,
+      "rd": 254.1475159562013,
+      "volatility": 0.05999843063708857,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 2,
+      "rating": 1483.2087485721515,
+      "rd": 254.76651654233618,
+      "volatility": 0.05999854549602972,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 3,
+      "rating": 1447.8492433676952,
+      "rd": 255.55652014259954,
+      "volatility": 0.05999851016444591,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 4,
+      "rating": 1652.9521377514636,
+      "rd": 256.5131877667271,
+      "volatility": 0.06000048228111295,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 5,
+      "rating": 1657.3713533151792,
+      "rd": 257.6312744363216,
+      "volatility": 0.06000087570401022,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 6,
+      "rating": 1546.2069333400661,
+      "rd": 258.90466507925714,
+      "volatility": 0.059999648184948386,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 7,
+      "rating": 1603.008342015959,
+      "rd": 253.7029224946884,
+      "volatility": 0.05999897717381895,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 8,
+      "rating": 1388.7519088175054,
+      "rd": 267.2809868352939,
+      "volatility": 0.05999868558175558,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 9,
+      "rating": 1502.294493625448,
+      "rd": 265.80656825908335,
+      "volatility": 0.05999877672488653,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 10,
+      "rating": 1454.7438666723028,
+      "rd": 264.589711675544,
+      "volatility": 0.05999865680263539,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 11,
+      "rating": 1355.3646743505521,
+      "rd": 263.64281945174355,
+      "volatility": 0.05999857840505961,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 12,
+      "rating": 1344.1513754547088,
+      "rd": 262.9755884244968,
+      "volatility": 0.059998559224863794,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 13,
+      "rating": 1471.9170010905113,
+      "rd": 262.5948739573805,
+      "volatility": 0.05999901902388326,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 14,
+      "rating": 1545.6386034525233,
+      "rd": 268.9980372219264,
+      "volatility": 0.05999883826334943,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     }
+    ]
+   }
+  }
+ ]
+}

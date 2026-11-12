@@ -117,12 +117,29 @@ completeness_expected_answers = 20
 initial_rating = 1500
 initial_rd = 350
 initial_volatility = 0.06
-# tau = TBD (step 4)
+# Volatility constraint. Glickman suggests 0.3 to 1.2; smaller keeps volatility steadier. The sim tunes it
+# (step 4, chunk 4).
+tau = 0.5
+# Convergence tolerance of the volatility step (Illinois algorithm); more than 100 iterations is an error.
+volatility_epsilon = 0.000001
+# RD a new child scope (a club) starts with, unless its parent's RD is higher. Tuned in the sim (chunk 4).
+child_scope_initial_rd = 250
+# Weight of one game in a period: v = 1 / sum(w g^2 E (1-E)), delta = v * sum(w g (s - E)). 1.0 is standard
+# Glicko-2; fractional results carry less information than a win/loss, so the sim may prefer more (chunk 4).
+game_weight = 1.0
 uncertain_rd_threshold = 110
 club_rating_min_prompts = 20
 prompt_lock_answers = 200
-# child_scope_initial_rd = TBD (step 4) — "high RD" for a new club/competition scope
 # irt_refit_min_rated_answers = 1000 (later, not first build)
+
+# A prompt's starting rating: seed_rating = intercept + sum(coefficient_k * feature_k) (+ a template offset the
+# sim may add). The features are frozen in prompts.rarity at approval. The values below carry no information
+# (all coefficients 0); the sim fits them against its simulated world (chunk 3) and they are approved in chunk 4.
+[glicko.prompt_seed]
+intercept = 1500
+# RD of a fresh prompt rating: how far the seed may be off. The sim sets it from its cross-validated error.
+rd = 350
+coefficients = { log_recall_mass = 0.0 }
 
 # ---------------------------------------------------------------------------
 # LLM

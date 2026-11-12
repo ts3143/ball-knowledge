@@ -35,6 +35,7 @@ supabase/.temp/
 pipeline/data/raw/
 pipeline/data/cache/
 sim/output/
+sim/data/
 *.parquet
 
 # Testing

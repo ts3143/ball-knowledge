@@ -1,0 +1,23 @@
+[project]
+name = "bk-sim"
+version = "0.1.0"
+description = "Ball Knowledge rating engine reference (Glicko-2) and simulation"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.17.4",
+]
