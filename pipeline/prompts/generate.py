@@ -13,7 +13,7 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
 from ingest.console import log
-from rarity.features import AnswerSet, latest_season, load_evidence
+from rarity.features import AnswerSet, current_from_year, load_evidence
 from rarity.model import ModelParams
 from rarity.stage import RARITY_COLUMNS, exact_floats, pageviews_through, rate_for_storage, stored_params
 
@@ -70,13 +70,6 @@ class Stats:
 
 def params_key(params: dict) -> str:
     return json.dumps(params, sort_keys=True)
-
-
-def current_from_year(cur, competition_id: int, competition_qid: str, tunables: dict) -> int:
-    """Open-ended spells from this season on are current, not weak: the latest season in the data
-    minus the tunable window (rendered as a literal into each stored answer_query)."""
-    latest = latest_season(cur, competition_id, competition_qid)
-    return latest - (tunables["prompts"]["open_ended_current_seasons"] - 1)
 
 
 def generate(conn: psycopg.Connection, competition_qid: str, tunables: dict,
@@ -199,7 +192,7 @@ def _store(cur, template: Template, competition_id: int, generated: list[Generat
                 " club_ids, status, gate_results, answer_count, facts_as_of, rarity)"
                 " values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) returning id",
                 (template.id, Jsonb(g.params), g.text, template.answer_type, g.answer_query, competition_id,
-                 g.club_ids, g.status, Jsonb(g.gate_results), len(g.answers), facts_as_of, Jsonb(g.rarity)))
+                 g.club_ids, g.status, Jsonb(g.gate_results), len(g.answers), facts_as_of, _jsonb(g.rarity)))
             _insert_answers(cur, cur.fetchone()["id"], answers)
             stats.inserted += 1
             continue
@@ -224,7 +217,7 @@ def _store(cur, template: Template, competition_id: int, generated: list[Generat
             "update prompts set text = %s, answer_query = %s, club_ids = %s, status = %s, gate_results = %s,"
             " answer_count = %s, facts_as_of = %s, rarity = %s, updated_at = now() where id = %s",
             (g.text, g.answer_query, g.club_ids, g.status, Jsonb(g.gate_results), len(g.answers), facts_as_of,
-             Jsonb(g.rarity), row["id"]))
+             _jsonb(g.rarity), row["id"]))
         if before != answers:
             cur.execute("delete from prompt_answers where prompt_id = %s", (row["id"],))
             _insert_answers(cur, row["id"], answers)
@@ -237,6 +230,11 @@ def _store(cur, template: Template, competition_id: int, generated: list[Generat
         cur.execute("delete from prompts where id = any(%s)", (to_delete,))
     stats.deleted = len(to_delete)
     return stats
+
+
+def _jsonb(value):
+    """A jsonb parameter that is SQL NULL, not JSON null, for None (a JSON null would pass `rarity is not null`)."""
+    return None if value is None else Jsonb(value)
 
 
 def _insert_answers(cur, prompt_id: int, answers: dict[int, tuple]) -> None:

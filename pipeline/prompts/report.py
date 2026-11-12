@@ -19,9 +19,9 @@ from psycopg.rows import dict_row
 
 from ingest.normalize import normalize
 from ingest.report import _q
-from rarity.model import ModelParams, tier_gate
+from rarity.features import current_from_year
+from rarity.model import WEAK_FLAG, ModelParams, tier_gate
 
-from .generate import current_from_year
 from .templates import TEMPLATES
 
 REVIEW_DIR = Path(__file__).resolve().parents[1] / "data" / "review"
@@ -138,7 +138,7 @@ def template_numbers(data: Data, template_id: str) -> dict:
         "top_share": med([p["gate_results"]["tiers"]["top_share"] for p in rated]),
         "expected_points": med([p["rarity"]["expected_points"] for p in rated]),
         "answers": len(answers),
-        "weak": sum("weak_stint" in a["flags"] for a in answers),
+        "weak": sum(WEAK_FLAG in a["flags"] for a in answers),
         "edge": sum("edge_season" in a["flags"] for a in answers),
         "deep": len(deep), "deep_flagged": sum(bool(a["flags"]) for a in deep),
     }
@@ -172,7 +172,7 @@ def weak_breakdown(data: Data) -> tuple[int, Counter]:
         if p["status"] != "gate_passed":
             continue
         for a in p["answers"]:
-            if "weak_stint" in a["flags"]:
+            if WEAK_FLAG in a["flags"]:
                 total += 1
                 for f in a["fact_ids"]:
                     reasons.update(data.weak_reasons.get(f, []))
@@ -312,4 +312,5 @@ def write_review_files(data: Data, numbers: dict, review_dir: Path = REVIEW_DIR,
 
 
 def _cell(text: str) -> str:
-    return text.replace("|", "\\|")
+    """Text safe inside a markdown table cell: backslashes and pipes escaped, newlines flattened."""
+    return " ".join(text.replace("\\", "\\\\").replace("|", "\\|").splitlines())

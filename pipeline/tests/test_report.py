@@ -6,6 +6,7 @@ from pathlib import Path
 
 from prompts.report import (
     Data,
+    _cell,
     format_numbers,
     name_mismatch,
     points_cell,
@@ -57,7 +58,7 @@ def fake_data(prompts, facts=None, mismatches=()):
 
 def answer(name, share=None, tier=None, model_tier=None, flags=(), fact_ids=()):
     rated = tier is not None
-    return {"entity_id": abs(hash(name)) % 1000, "name": name, "flags": list(flags), "fact_ids": list(fact_ids),
+    return {"entity_id": sum(map(ord, name)), "name": name, "flags": list(flags), "fact_ids": list(fact_ids),
             "views_de": 1000 if rated else None, "views_en": 500 if rated else None, "tie": 12.0 if rated else None,
             "since": 2.0 if rated else None, "share": share, "tier": tier,
             "model_tier": model_tier if model_tier is not None else tier,
@@ -183,3 +184,9 @@ def test_no_mix_gate_is_left_in_the_gate_results_or_the_tunables():
     tunables = tomllib.loads((root / "tunables.toml").read_text())
     assert not [k for k in tunables["quality_gates"] if k.startswith("mix")]
     assert "mix" not in (root / "tunables.toml").read_text().lower().replace("mixed", "")
+
+
+def test_table_cells_escape_backslashes_and_pipes_and_flatten_newlines():
+    assert _cell("a|b") == "a\\|b"
+    assert _cell("a\\|b") == "a\\\\\\|b"  # a literal backslash, then an escaped pipe
+    assert _cell("line one\nline two\r\nthree") == "line one line two three"

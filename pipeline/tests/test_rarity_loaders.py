@@ -5,7 +5,7 @@ from datetime import date
 import pytest
 
 from rarity.features import AnswerSet, compute_features, load_evidence
-from tests.test_generate import TUNABLES, World, conn  # noqa: F401  (conn is the fixture)
+from tests.db_world import TUNABLES, World
 
 pytestmark = pytest.mark.db
 
@@ -16,7 +16,7 @@ def tunables(world):
         "features": {"min_spell_seasons": 0.5, "imputed_apps_per_season": 16, "edge_season_weight": 0.5}}}
 
 
-def test_loaders_return_what_the_feature_functions_expect(conn):  # noqa: F811
+def test_loaders_return_what_the_feature_functions_expect(conn):
     w = World(conn)  # seasons 2008..2013 of clubs A-E, so R = 2013 and the current cutoff is 2012
     a, b = w.clubs["A"]["id"], w.clubs["B"]["id"]
     p1, p2 = w.person("Placeholder One"), w.person("Placeholder Two")
@@ -54,7 +54,7 @@ def test_loaders_return_what_the_feature_functions_expect(conn):  # noqa: F811
     assert nat.seasons_since == (2013 + 1 - 2000) / 2
 
 
-def test_missing_fame_weights_for_the_competition_stop_the_run(conn):  # noqa: F811
+def test_missing_fame_weights_for_the_competition_stop_the_run(conn):
     w = World(conn)
     bad = {**tunables(w), "rarity": {**tunables(w)["rarity"], "fame_weights": {}}}
     with pytest.raises(SystemExit, match="fame_weights"):

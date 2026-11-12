@@ -188,28 +188,38 @@ def test_weak_open_ended_spell_keeps_only_its_first_season_in_season_templates()
     assert [r.season for r in usable_season_rows([1], ev)] == [2005]
 
 
-def test_competition_templates_sum_apps_per_season_over_distinct_club_seasons():
-    # 3 years, 60 apps -> 20 a season; seasons 2010..2012 (3 distinct pairs), all non-edge
+def test_a_spell_entirely_in_the_competition_contributes_exactly_its_apps():
+    s = stint(1, start=2010, end=2012, apps=40)  # year-only: 2009 and 2012 only possibly covered
+    ev = evidence([s], rows(1, A, [2009, 2010, 2011, 2012], edge=[2009, 2012]))
+    f = compute_features(AnswerSet("bundesliga_nationality", [], {7: [1]}), ev)[7]
+    assert f.tie_amount == pytest.approx(40.0) and (f.seasons, f.edge_seasons) == (4, 2)
+    assert f.seasons_since == 2025 - 2012
+
+
+def test_seasons_outside_the_competition_take_their_share_of_the_apps():
+    # 2010-2013 covers 2009 (edge) to 2013 (edge) = 4 weight; only 2010-2012 (3) are in the competition
     s = stint(1, start=2010, end=2013, apps=60)
     ev = evidence([s], rows(1, A, [2010, 2011, 2012]))
     f = compute_features(AnswerSet("bundesliga_nationality", [], {7: [1]}), ev)[7]
-    assert f.tie_amount == pytest.approx(60.0, abs=0.5) and f.seasons == 3 and f.edge_seasons == 0
-    assert f.seasons_since == 2025 - 2012
+    assert f.tie_amount == pytest.approx(60.0 * 3 / 4) and f.seasons == 3 and f.edge_seasons == 0
+    assert f.tie_amount <= 60
 
 
 def test_edge_seasons_count_for_the_edge_weight():
     s = stint(1, start=2010, end=2012, apps=40)  # 20 a season
     ev = evidence([s], rows(1, A, [2009, 2010, 2011, 2012], edge=[2009, 2012]))
     f = compute_features(AnswerSet("bundesliga_nationality", [], {7: [1]}), ev)[7]
-    assert f.tie_amount == pytest.approx(0.5 * 20 + 20 + 20 + 0.5 * 20, abs=0.5)
+    assert f.tie_amount == pytest.approx(40.0)  # the edge seasons carry half a share each; the spell adds up to its apps
     assert (f.seasons, f.edge_seasons) == (4, 2)
 
 
 def test_two_spells_covering_one_season_count_the_larger_and_a_non_edge_row_cancels_the_edge():
-    low, high = stint(1, start=2010, end=2012, apps=20), stint(2, start=2010, end=2012, apps=60)  # 10 and 30 a season
-    ev = evidence([low, high], rows(1, A, [2011], edge=[2011]) + rows(2, A, [2011]))
+    low, high = stint(1, start=2010, end=2012, apps=20), stint(2, start=2010, end=2012, apps=60)
+    ev = evidence([low, high], rows(1, A, [2011], edge=[2011])
+                  + rows(2, A, [2009, 2010, 2011, 2012], edge=[2009, 2012]))
     f = compute_features(AnswerSet("bundesliga_nationality", [], {7: [1, 2]}), ev)[7]
-    assert f.tie_amount == pytest.approx(30.0, abs=0.5) and f.edge_seasons == 0
+    # high: 60 over weight 3 = 20 a season, low's share is thinner; 2011 counts the larger and is not an edge
+    assert f.tie_amount == pytest.approx(0.5 * 20 + 20 + 20 + 0.5 * 20) and f.edge_seasons == 2
 
 
 def test_null_apps_in_a_season_template_use_the_imputed_rate_and_are_flagged():
@@ -219,12 +229,12 @@ def test_null_apps_in_a_season_template_use_the_imputed_rate_and_are_flagged():
 
 
 def test_title_winners_count_only_title_seasons_of_the_club():
-    s = stint(1, start=2008, end=2013, apps=50)  # 10 a season
+    s = stint(1, start=2008, end=2013, apps=50)  # 50 apps over 2007 (edge) to 2013 (edge) = weight 6
     other = stint(2, B, start=2008, end=2013, apps=500)
     ev = evidence([s, other], rows(1, A, range(2008, 2013)) + rows(2, B, range(2008, 2013)),
                   events=[EventFact(10, "won", A, 2009), EventFact(11, "won", A, 2011), EventFact(12, "won", B, 2010)])
     f = compute_features(AnswerSet("club_title_winners", [A], {7: [1, 2, 10, 11]}), ev)[7]
-    assert f.seasons == 2 and f.tie_amount == pytest.approx(20.0, abs=0.5)  # 2009 and 2011 at club A only
+    assert f.seasons == 2 and f.tie_amount == pytest.approx(50 * 2 / 6)  # 2009 and 2011 at club A only
     assert f.seasons_since == 2025 - 2011
 
 
@@ -323,10 +333,10 @@ def test_coach_tenure_counts_only_the_window():
     assert f.tie_amount == pytest.approx(4.5 * 34, abs=4)
 
 
-def test_season_templates_use_the_rate_of_the_whole_spell():
-    s = stint(1, start=1998, end=2004, apps=120)  # 20 a season, whatever the window
+def test_season_templates_spread_the_apps_over_the_whole_spell_not_just_the_window():
+    s = stint(1, start=1998, end=2004, apps=120)  # 1997 (edge) to 2004 (edge): weight 7, so 120 / 7 a season
     f = compute_features(AnswerSet("bundesliga_nationality", [], {7: [1]}), evidence([s], rows(1, A, [2000, 2001])))[7]
-    assert f.tie_amount == pytest.approx(40.0, abs=1.0)
+    assert f.tie_amount == pytest.approx(2 * 120 / 7)
 
 
 def test_no_start_spell_with_a_known_end_takes_its_recency_from_that_end():
@@ -340,3 +350,68 @@ def test_no_start_spell_with_a_known_end_takes_its_recency_from_that_end():
     open_end = stint(start=None, end=None, weak=["no_start"], latest_end=None, earliest_end=None)
     assert spell_end(open_end, P.ref_date) is None
     assert spell_end(stint(start=None, end=None, quality="undated", weak=["undated"]), P.ref_date) is None
+
+
+def test_a_tie_never_exceeds_the_spells_apps():
+    for start, end in ((2010, 2012), (2010, 2010), (2005, 2013), (2008, 2009)):
+        s = stint(1, start=start, end=end, apps=30)
+        seasons = range(start - 1, end + 1)
+        ev = evidence([s], rows(1, A, seasons, edge=[start - 1, end]))
+        f = compute_features(AnswerSet("bundesliga_nationality", [], {7: [1]}), ev)[7]
+        assert f.tie_amount <= 30 + 1e-9
+
+
+def test_a_weak_open_ended_spell_keeps_its_first_certain_season_not_the_edge_row_before_it():
+    weak = stint(1, start=2005, end=None, quality="open_ended", weak=["open_ended"])
+    ev = evidence([weak], rows(1, A, range(2004, 2026), edge=[2004]))
+    assert [r.season for r in usable_season_rows([1], ev)] == [2005]
+    # with no certain season at all it falls back to the first row
+    ev = evidence([weak], rows(1, A, [2004, 2005], edge=[2004, 2005]))
+    assert [r.season for r in usable_season_rows([1], ev)] == [2004]
+
+
+def test_a_weak_open_ended_title_winner_has_the_title_seasons_its_answer_set_credited():
+    # Kim Min-jae pattern: an open-ended spell with a year-only start is credited with every later title
+    weak = stint(1, start=2005, end=None, quality="open_ended", weak=["open_ended"], apps=82)
+    seasons = range(2004, 2026)
+    ev = evidence([weak], rows(1, A, seasons, edge=[2004]),
+                  events=[EventFact(10, "won", A, 2010), EventFact(11, "won", A, 2015), EventFact(12, "won", A, 2020)])
+    f = compute_features(AnswerSet("club_title_winners", [A], {7: [1, 10, 11, 12]}), ev)[7]
+    assert f.seasons == 3 and f.tie_amount > 0 and not f.recency_unknown and f.seasons_since == 2025 - 2020
+    assert f.tie_amount <= 82
+    # a weak spell with no apps is imputed per credited season
+    noapps = stint(1, start=2005, end=None, quality="open_ended", weak=["open_ended"], apps=None)
+    ev = evidence([noapps], rows(1, A, seasons), events=[EventFact(10, "won", A, 2010), EventFact(11, "won", A, 2015)])
+    f = compute_features(AnswerSet("club_title_winners", [A], {7: [1, 10, 11]}), ev)[7]
+    assert f.tie_amount == 32 and f.apps_imputed
+
+
+def test_title_features_apply_the_summer_rule_like_the_answer_set():
+    # Fabian Johnson pattern: 2009-2011 reaches the 2008-09 title only as an edge row, and a multi-year spell
+    # starts in the summer, so that row is not counted (it would also dilute the rate of the other seasons)
+    s = stint(1, start=2009, end=2011, apps=60)
+    ev = evidence([s], rows(1, A, [2008, 2009, 2010, 2011], edge=[2008, 2011]),
+                  events=[EventFact(10, "won", A, 2008), EventFact(11, "won", A, 2010)])
+    f = compute_features(AnswerSet("club_title_winners", [A], {7: [1, 10, 11]}), ev)[7]
+    assert f.seasons == 1 and f.edge_seasons == 0 and f.seasons_since == 2025 - 2010
+    # a half-season spell in one calendar year keeps its edge row, flagged
+    loan = stint(2, start=2009, end=2009, apps=10)
+    ev = evidence([loan], rows(2, A, [2008, 2009], edge=[2008]), events=[EventFact(10, "won", A, 2008)])
+    f = compute_features(AnswerSet("club_title_winners", [A], {8: [2, 10]}), ev)[8]
+    assert (f.seasons, f.edge_seasons) == (1, 1) and f.tie_amount > 0
+
+
+def test_a_year_only_spell_and_its_open_ended_copy_are_one_spell():
+    # Bungert pattern: 2008-2019 with 194 apps, and the same 194 apps as a weak open-ended spell from 2010
+    closed = stint(1, start=2008, end=2019, apps=194)
+    copy = stint(2, start=2010, end=None, quality="open_ended", weak=["open_ended"], apps=194)
+    assert drop_duplicates([closed, copy]) == ([closed], 1)
+    assert apps_at([closed, copy], P)[0] == pytest.approx(194.0, abs=1)
+    # the same apps recorded with partly overlapping dates are one spell too; the lower fact id is kept
+    a, b = stint(3, start=2008, end=2012, apps=30), stint(4, start=2010, end=2014, apps=30)
+    assert drop_duplicates([b, a]) == ([a], 1)
+    # different apps, or spells that only touch, are summed
+    c = stint(5, start=2010, end=2014, apps=31)
+    assert drop_duplicates([a, c]) == ([a, c], 0)
+    d = stint(6, start=2012, end=2014, apps=30)
+    assert drop_duplicates([a, d]) == ([a, d], 0)

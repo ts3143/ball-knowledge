@@ -1,14 +1,18 @@
 """The pick-share model: score, share, tier, points and the tier gate, as pure functions over the features.
-Nothing here touches the database. Definitions are in the step 3 design (~/.claude/plans/step3-rarity-design.md,
-sections 2 to 4 and 7). Bump MODEL_VERSION whenever a feature definition or the formula changes.
+Nothing here touches the database. The model is log-linear:
+    score = alpha * ln(V + floor) + beta * ln(1 + tie) - ln2 * seasons_since / half_life
+    share = softmax(score) over the answers of one prompt
+Tiers are cut at the midpoint of an answer's cumulative share, the tier gate blocks prompts that cannot fill all
+five tiers, and a weak answer is capped at one tier. Bump MODEL_VERSION whenever a feature definition or the
+formula changes.
 """
 
 import math
 from dataclasses import dataclass
 
-MODEL_VERSION = "rarity-1"
+MODEL_VERSION = "rarity-2"
 WEAK_FLAG = "weak_stint"  # prompt_answers.flags value of an answer whose dates are uncertain
-_ROUND = 6
+ROUND_DIGITS = 6  # floats stored in jsonb (the tier gate, prompts.rarity) are rounded to this many decimals
 _EPS = 1e-9
 
 
@@ -129,9 +133,9 @@ def tier_gate(tiers: dict[int, int], shares: dict[int, float], p: ModelParams) -
         reasons.append(f"Bandwagon too big: {counts[0]} of {n} answers (max {cap:.2f})")
     return {
         "tier_counts": counts, "n": n, "bandwagon_answers": counts[0],
-        "max_bandwagon_answer_share": round(p.max_bandwagon_answer_share, _ROUND),
-        "top_share": round(max(shares.values(), default=0.0), _ROUND),
-        "n_eff": round(1 / math.fsum(s * s for _, s in sorted(shares.items())), _ROUND) if shares else 0.0,
+        "max_bandwagon_answer_share": round(p.max_bandwagon_answer_share, ROUND_DIGITS),
+        "top_share": round(max(shares.values(), default=0.0), ROUND_DIGITS),
+        "n_eff": round(1 / math.fsum(s * s for _, s in sorted(shares.items())), ROUND_DIGITS) if shares else 0.0,
         "reasons": reasons, "pass": not reasons}
 
 

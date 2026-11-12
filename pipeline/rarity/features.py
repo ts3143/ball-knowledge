@@ -2,7 +2,14 @@
 recency (seasons since the last tie). Pure functions over rows the loaders read in bulk; nothing here
 writes to the database or reads the clock (the reference date is the competition's latest season).
 
-Tie and recency per template are defined in the step 3 design (~/.claude/plans/step3-rarity-design.md, section 1).
+Tie and recency per template:
+- club_pair: tie is the smaller of the apps at the two clubs (the weaker link limits recall); recency is the
+  more recent association.
+- club_nationality: apps at the club. club_coaches: seasons coached at the club, as match equivalents.
+- bundesliga_nationality: apps in the competition's seasons. club_title_winners: the same, in title seasons only.
+- multi_club_coaches: match equivalents over the (club, season) pairs coached.
+- relegated_clubs / promoted_clubs: the number of events.
+A spell's apps are spread over the seasons it possibly covers, so a person's tie never exceeds their apps.
 """
 
 import math
@@ -120,6 +127,13 @@ def latest_season(cur, competition_id: int, competition_qid: str) -> int:
     return latest
 
 
+def current_from_year(cur, competition_id: int, competition_qid: str, tunables: dict) -> int:
+    """Open-ended spells from this season on are current, not weak: the latest season in the data minus the
+    tunable window (rendered as a literal into each stored answer_query). `cur` must be a dict_row cursor."""
+    latest = latest_season(cur, competition_id, competition_qid)
+    return latest - (tunables["prompts"]["open_ended_current_seasons"] - 1)
+
+
 def load_evidence(cur, answer_sets: list[AnswerSet], competition_qid: str, tunables: dict) -> Evidence:
     """Reads pageviews, stints, season rows and won / competed_in facts for every answer in the sets.
     `cur` must be a dict_row cursor."""
@@ -132,7 +146,7 @@ def load_evidence(cur, answer_sets: list[AnswerSet], competition_qid: str, tunab
     weights = tunables["rarity"]["fame_weights"].get(competition_qid)
     if weights is None:
         raise SystemExit(f"No [rarity.fame_weights.{competition_qid}] in tunables.toml.")
-    current_from = reference - (tunables["prompts"]["open_ended_current_seasons"] - 1)
+    current_from = current_from_year(cur, comp["id"], competition_qid, tunables)
 
     entity_ids = sorted({e for s in answer_sets for e in s.answers})
     fact_ids = sorted({f for s in answer_sets for ids in s.answers.values() for f in ids})
@@ -235,21 +249,41 @@ def window_fraction(s: Stint, p: FeatureParams) -> float:
     return years_between(*clipped) / years_between(*full)
 
 
-def drop_duplicates(stints: list[Stint]) -> tuple[list[Stint], int]:
-    """At one club, drops a spell whose year range lies inside another's and whose apps are no higher
-    (null counts as 0). Identical spells with equal apps keep the lower fact id. Spells that merely touch
-    or do not overlap are all kept. Returns (kept, number dropped)."""
-    def span(s):
-        return (_NEG if s.start_year is None else s.start_year, _POS if s.end_year is None else s.end_year)
+def year_span(s: Stint) -> tuple[float, float]:
+    """The spell's years, with the end as spell_bounds sees it: a weak open-ended spell lasts one season, a
+    current one has no end."""
+    start = _NEG if s.start_year is None else s.start_year
+    if s.end_year is not None:
+        return start, s.end_year
+    if "open_ended" in s.weak_reasons and s.start_year is not None:
+        return start, s.start_year + 1
+    return start, _POS
 
+
+def drop_duplicates(stints: list[Stint]) -> tuple[list[Stint], int]:
+    """At one club, drops a spell that repeats another:
+    - its year range lies inside another's and its apps are no higher (null counts as 0); identical spells with
+      equal apps keep the lower fact id;
+    - it overlaps an earlier-kept spell (lower fact id) and has the same non-null apps: the same spell recorded
+      with different dates, e.g. by Wikidata and German Wikipedia.
+    Spells that merely touch or do not overlap are all kept. Returns (kept, number dropped)."""
     def covered(s, o):
-        (a0, a1), (b0, b1) = span(s), span(o)
+        (a0, a1), (b0, b1) = year_span(s), year_span(o)
         if not (b0 <= a0 and a1 <= b1) or (s.apps or 0) > (o.apps or 0):
             return False
-        return span(s) != span(o) or (s.apps or 0) < (o.apps or 0) or s.fact_id > o.fact_id
+        return (a0, a1) != (b0, b1) or (s.apps or 0) < (o.apps or 0) or s.fact_id > o.fact_id
+
+    def same_spell(s, o):
+        (a0, a1), (b0, b1) = year_span(s), year_span(o)
+        return s.apps is not None and s.apps == o.apps and max(a0, b0) < min(a1, b1)
 
     kept = [s for s in stints if not any(covered(s, o) for o in stints if o is not s)]
-    return kept, len(stints) - len(kept)
+    final: list[Stint] = []
+    for s in sorted(kept, key=lambda x: x.fact_id):
+        if not any(same_spell(s, o) for o in final):
+            final.append(s)
+    final_ids = {s.fact_id for s in final}
+    return [s for s in kept if s.fact_id in final_ids], len(stints) - len(final)
 
 
 def apps_at(stints: list[Stint], p: FeatureParams) -> tuple[float, bool, int]:
@@ -303,28 +337,84 @@ class SeasonSum:
     imputed: bool = False
 
 
-def usable_season_rows(fact_ids: list[int], ev: Evidence) -> list[SeasonRow]:
-    """The competition's season rows of the answer's spells. A weak open-ended spell has no known end,
-    so stint_seasons would credit it with every season up to now; it keeps only its first season."""
-    out = []
+def credited_rows(fact_id: int, ev: Evidence, title: bool = False) -> list[SeasonRow]:
+    """The competition's season rows credited to a spell. stint_seasons credits a weak open-ended spell with every
+    season up to now, but it probably lasted one: other templates keep only its first certain season (the first
+    row if there is none). The title template keeps every row, because its answer set credits them all, but
+    drops an edge row unless the spell starts and ends in the same year (the summer rule of
+    club_title_winners_answers.sql: a year-only spell starts and ends between seasons)."""
+    rows, s = ev.season_rows.get(fact_id, []), ev.stints.get(fact_id)
+    if title:
+        same_year = s is not None and s.start_year is not None and s.start_year == s.end_year
+        return [r for r in rows if not r.edge or same_year]
+    if s is not None and "open_ended" in s.weak_reasons and rows:
+        first = min((r.season for r in rows if not r.edge), default=min(r.season for r in rows))
+        rows = [r for r in rows if r.season == first]
+    return rows
+
+
+def usable_season_rows(fact_ids: list[int], ev: Evidence, title: bool = False) -> list[SeasonRow]:
+    return [r for fid in fact_ids for r in credited_rows(fid, ev, title)]
+
+
+def season_of(d: date) -> int:
+    """The season a date falls in, counting a season from August (an approximation for seasons the data lacks)."""
+    return d.year if d.month >= 8 else d.year - 1
+
+
+def spell_season_weight(s: Stint, ev: Evidence, title: bool = False) -> float:
+    """The total weight of the seasons the spell possibly covers: 1 for a season it certainly covers, and
+    edge_season_weight for one it only possibly covers. Competition seasons use the stored rows; seasons the
+    data lacks (another league's years) are worked out from the spell's bounds with August-to-May seasons.
+    A weak open-ended spell counts only the season it lasts, except for the title template, which credits it with
+    every season up to now."""
+    p = ev.params
+    if s.earliest_start is None:
+        return 1.0
+    weak_open = s.latest_end is None and "open_ended" in s.weak_reasons
+    if s.latest_end is not None:
+        end = s.latest_end
+    elif weak_open and not title:
+        end = s.earliest_start + timedelta(days=DAYS_PER_YEAR)
+    else:
+        end = p.ref_date
+    end_season = season_of(end)
+    weights = {r.season: (p.edge_season_weight if r.edge else 1.0) for r in ev.season_rows.get(s.fact_id, [])
+               if r.season <= end_season}
+    for y in range(season_of(s.earliest_start) - 1, end_season + 2):
+        if y in weights:
+            continue
+        season_start, season_end = date(y, 8, 1), date(y + 1, 5, 31)
+        if s.earliest_start <= season_end and end >= season_start:
+            certain = (s.latest_start or s.earliest_start) <= season_end and (s.earliest_end or end) >= season_start
+            weights[y] = 1.0 if certain else p.edge_season_weight
+    return sum(weights.values()) or 1.0
+
+
+def apps_units(fact_ids: list[int], ev: Evidence, title: bool = False) -> dict[int, tuple[float, bool]]:
+    """fact id -> (apps per unit of season weight, imputed): the spell's apps spread over the seasons it possibly
+    covers, so the seasons counted never add up to more than its apps. Null apps are imputed per season."""
+    out = {}
     for fid in fact_ids:
-        rows, s = ev.season_rows.get(fid, []), ev.stints.get(fid)
-        if s is not None and "open_ended" in s.weak_reasons and rows:
-            first = min(r.season for r in rows)
-            rows = [r for r in rows if r.season == first]
-        out.extend(rows)
+        s = ev.stints.get(fid)
+        if s is None:
+            continue
+        if s.apps is None:
+            out[fid] = (ev.params.imputed_apps_per_season, True)
+        else:
+            out[fid] = (s.apps / spell_season_weight(s, ev, title), False)
     return out
 
 
-def season_sum(rows: list[SeasonRow], ev: Evidence, per_season) -> SeasonSum:
-    """Sums per_season(stint) -> (value, imputed) over distinct (club, season) pairs. A pair counts the
+def season_sum(rows: list[SeasonRow], ev: Evidence, value_of) -> SeasonSum:
+    """Sums value_of(fact_id) -> (value, imputed) over distinct (club, season) pairs. A pair counts the
     largest value of the spells covering it, and edge_season_weight of that when every row is an edge."""
     pairs: dict[tuple[int, int], list[SeasonRow]] = {}
     for r in rows:
         pairs.setdefault((r.club_id, r.season), []).append(r)
     out = SeasonSum()
     for (_, season), group in sorted(pairs.items()):
-        value, imputed = max((per_season(ev.stints[r.fact_id]) for r in group), key=lambda v: v[0])
+        value, imputed = max((value_of(r.fact_id) for r in group), key=lambda v: v[0])
         edge = all(r.edge for r in group)
         out.total += (ev.params.edge_season_weight if edge else 1.0) * value
         out.seasons += 1
@@ -332,13 +422,6 @@ def season_sum(rows: list[SeasonRow], ev: Evidence, per_season) -> SeasonSum:
         out.imputed = out.imputed or imputed
         out.last_season = season if out.last_season is None else max(out.last_season, season)
     return out
-
-
-def apps_per_season(s: Stint, p: FeatureParams) -> tuple[float, bool]:
-    """The rate over the whole spell: the seasons counted are already in the data, so no clipping."""
-    if s.apps is None:
-        return p.imputed_apps_per_season, True
-    return s.apps / max(1.0, tenure_years(s, p, clip=False)), False
 
 
 # ---------------------------------------------------------------------------
@@ -390,20 +473,21 @@ def _from_season_sum(entity_id, total: SeasonSum, ev) -> Features:
 
 
 def _competition_apps(entity_id, fact_ids, club_ids, ev):
-    total = season_sum(usable_season_rows(fact_ids, ev), ev, lambda s: apps_per_season(s, ev.params))
-    return _from_season_sum(entity_id, total, ev)
+    units = apps_units(fact_ids, ev)
+    return _from_season_sum(entity_id, season_sum(usable_season_rows(fact_ids, ev), ev, units.__getitem__), ev)
 
 
 def _title_apps(entity_id, fact_ids, club_ids, ev):
     titles = {e.season for f in fact_ids if (e := ev.events.get(f)) is not None
               and e.predicate == "won" and e.club_id == club_ids[0]}
-    rows = [r for r in usable_season_rows(fact_ids, ev) if r.club_id == club_ids[0] and r.season in titles]
-    return _from_season_sum(entity_id, season_sum(rows, ev, lambda s: apps_per_season(s, ev.params)), ev)
+    rows = [r for r in usable_season_rows(fact_ids, ev, title=True) if r.club_id == club_ids[0] and r.season in titles]
+    units = apps_units(fact_ids, ev, title=True)
+    return _from_season_sum(entity_id, season_sum(rows, ev, units.__getitem__), ev)
 
 
 def _multi_club_coaches(entity_id, fact_ids, club_ids, ev):
     m = float(ev.params.matches_per_season)
-    return _from_season_sum(entity_id, season_sum(usable_season_rows(fact_ids, ev), ev, lambda s: (m, False)), ev)
+    return _from_season_sum(entity_id, season_sum(usable_season_rows(fact_ids, ev), ev, lambda fid: (m, False)), ev)
 
 
 def _club_events(entity_id, fact_ids, club_ids, ev):

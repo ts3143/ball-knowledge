@@ -6,9 +6,7 @@ read-only query; generate stays the only writer.
 from dataclasses import dataclass
 
 from .features import AnswerSet, Evidence, Features, compute_features, fame
-from .model import MODEL_VERSION, WEAK_FLAG, ModelParams, RatedPrompt, rate_prompt
-
-_ROUND = 6
+from .model import MODEL_VERSION, ROUND_DIGITS, WEAK_FLAG, ModelParams, RatedPrompt, rate_prompt
 
 # prompt_answers columns the model writes, in the order they are stored and compared.
 RARITY_COLUMNS = ("views_de", "views_en", "tie_amount", "seasons_since", "score", "predicted_share",
@@ -42,13 +40,14 @@ def stored_params(mp: ModelParams, ev: Evidence, tunables: dict) -> dict:
     return {**mp.to_params(), "fame_weights": dict(ev.fame_weights),
             "features": {"min_spell_seasons": p.min_spell_seasons, "imputed_apps_per_season": p.imputed_apps_per_season,
                          "edge_season_weight": p.edge_season_weight, "matches_per_season": p.matches_per_season,
-                         "start_year": tunables["ingest"]["start_year"]}}
+                         "start_year": tunables["ingest"]["start_year"],
+                         "open_ended_current_seasons": tunables["prompts"]["open_ended_current_seasons"]}}
 
 
 def prompt_rarity(result: RatedPrompt, params: dict, reference_season: int, through: str | None) -> dict:
     return {"model_version": MODEL_VERSION, "params": params, "reference_season": reference_season,
-            "pageviews_through": through, "expected_points": round(result.expected_points, _ROUND),
-            "log_recall_mass": round(result.log_recall_mass, _ROUND)}
+            "pageviews_through": through, "expected_points": round(result.expected_points, ROUND_DIGITS),
+            "log_recall_mass": round(result.log_recall_mass, ROUND_DIGITS)}
 
 
 def answer_values(e: int, f: Features, r: RatedPrompt, hipster: bool = False) -> tuple:

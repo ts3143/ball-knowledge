@@ -7,7 +7,7 @@ import pytest
 
 from rarity.check import check
 from rarity.stage import RARITY_COLUMNS
-from tests.test_generate import TUNABLES, World, conn, rarity_tunables  # noqa: F401  (conn is the fixture)
+from tests.db_world import TUNABLES, World, rarity_tunables
 
 pytestmark = pytest.mark.db
 
@@ -55,14 +55,15 @@ def snapshot(w):
     return [{k: v for k, v in r.items()} for r in rows]
 
 
-def test_rarity_is_written_for_candidates(conn):  # noqa: F811
+def test_rarity_is_written_for_candidates(conn):
     w = World(conn)
     people = club_a_citizens(w, graded)
     stats = w.run("club_nationality")["club_nationality"]
     prompt, answers = prompt_and_answers(w)
     assert len(answers) == N and prompt["status"] == "gate_passed" and stats.gate_passed == 1
     r = prompt["rarity"]
-    assert r["model_version"] == "rarity-1" and r["reference_season"] == 2013 and r["pageviews_through"] == latest_pageview_month(w)
+    assert r["model_version"] == "rarity-2" and r["reference_season"] == 2013 and r["pageviews_through"] == latest_pageview_month(w)
+    assert r["params"]["features"]["open_ended_current_seasons"] == 2
     assert r["params"]["alpha"] == 0.6 and r["params"]["fame_weights"] == {"de": 1.0, "en": 0.4}
     assert r["params"]["weak_answer_max_tier"] == 3 and r["params"]["cumulative_share"][0] == 0.5
     assert prompt["gate_results"]["tiers"]["pass"] and prompt["gate_results"]["tiers"]["n"] == N
@@ -75,7 +76,7 @@ def test_rarity_is_written_for_candidates(conn):  # noqa: F811
     assert all(a["tier"] == a["model_tier"] for a in answers.values())
 
 
-def test_prompts_that_fail_the_size_gate_are_not_rated(conn):  # noqa: F811
+def test_prompts_that_fail_the_size_gate_are_not_rated(conn):
     w = World(conn)
     club_a_citizens(w, graded)
     gates = {**TUNABLES["quality_gates"], "min_answers": 100}
@@ -86,7 +87,7 @@ def test_prompts_that_fail_the_size_gate_are_not_rated(conn):  # noqa: F811
     assert all(a["score"] is None and a["tier"] is None and not a["hipster_pick"] for a in answers.values())
 
 
-def test_the_tier_gate_blocks_a_prompt_that_cannot_spread_over_the_tiers(conn):  # noqa: F811
+def test_the_tier_gate_blocks_a_prompt_that_cannot_spread_over_the_tiers(conn):
     w = World(conn)
     club_a_citizens(w, lambda i: 1000)  # identical players: one block, so one tier
     stats = w.run("club_nationality")["club_nationality"]
@@ -98,7 +99,7 @@ def test_the_tier_gate_blocks_a_prompt_that_cannot_spread_over_the_tiers(conn): 
     assert len(answers) == N and all(a["score"] is not None for a in answers.values())  # still rated, to see why
 
 
-def test_a_weak_answer_is_capped_at_real_one_in_tier_and_points_but_not_in_model_tier(conn):  # noqa: F811
+def test_a_weak_answer_is_capped_at_real_one_in_tier_and_points_but_not_in_model_tier(conn):
     w = World(conn)
     people = club_a_citizens(w, graded, weak_last=True)
     stats = w.run("club_nationality")["club_nationality"]
@@ -111,7 +112,7 @@ def test_a_weak_answer_is_capped_at_real_one_in_tier_and_points_but_not_in_model
     assert sum(counts) == N and counts[2] >= 1 and stats.weak_cap_cost == 0  # the gate still passes without it
 
 
-def test_an_approved_prompts_rarity_does_not_change_when_a_tunable_does(conn):  # noqa: F811
+def test_an_approved_prompts_rarity_does_not_change_when_a_tunable_does(conn):
     w = World(conn)
     club_a_citizens(w, graded)
     w.run("club_nationality")
@@ -127,7 +128,7 @@ def test_an_approved_prompts_rarity_does_not_change_when_a_tunable_does(conn):  
     assert stats.updated == 1 and w.prompts("club_nationality")[0]["rarity"]["params"]["alpha"] == 0.9
 
 
-def test_a_second_run_changes_nothing(conn):  # noqa: F811
+def test_a_second_run_changes_nothing(conn):
     w = World(conn)
     club_a_citizens(w, graded)
     first = w.run()
@@ -138,7 +139,7 @@ def test_a_second_run_changes_nothing(conn):  # noqa: F811
     assert snapshot(w) == before
 
 
-def test_template_only_runs_do_not_change_values(conn):  # noqa: F811
+def test_template_only_runs_do_not_change_values(conn):
     w = World(conn)
     club_a_citizens(w, graded)
     w.run("club_nationality")
@@ -149,7 +150,7 @@ def test_template_only_runs_do_not_change_values(conn):  # noqa: F811
     assert [r for r in snapshot(w) if r["template"] == "club_nationality"] == subset
 
 
-def test_check_passes_and_fails_on_a_tampered_row(conn, capsys):  # noqa: F811
+def test_check_passes_and_fails_on_a_tampered_row(conn, capsys):
     w = World(conn)
     club_a_citizens(w, graded, weak_last=True)
     w.run()
@@ -168,7 +169,7 @@ def test_check_passes_and_fails_on_a_tampered_row(conn, capsys):  # noqa: F811
     assert check(conn, w.comp["id"]) >= 1
 
 
-def test_check_lists_other_versions_without_recomputing_and_flags_missing_rarity(conn, capsys):  # noqa: F811
+def test_check_lists_other_versions_without_recomputing_and_flags_missing_rarity(conn, capsys):
     w = World(conn)
     club_a_citizens(w, graded)
     w.run("club_nationality")
@@ -186,7 +187,45 @@ def test_check_lists_other_versions_without_recomputing_and_flags_missing_rarity
     assert "passes the size gate but has no rarity" in capsys.readouterr().out
 
 
-def test_the_database_refuses_half_rated_answers_and_uncapped_tiers_and_unrated_approvals(conn):  # noqa: F811
+def test_a_prompt_that_is_not_rated_has_sql_null_rarity_and_cannot_be_approved(conn):
+    w = World(conn)
+    club_a_citizens(w, graded)
+    gates = {**TUNABLES["quality_gates"], "min_answers": 100}
+    w.run("club_nationality", quality_gates=gates)
+    prompt, _ = prompt_and_answers(w)
+    assert prompt["rarity"] is None  # SQL NULL, not a JSON null that would pass `rarity is not null`
+    assert w.cur.execute("select jsonb_typeof(rarity) as t from prompts where id = %s",
+                         (prompt["id"],)).fetchone()["t"] is None
+    w.run("club_nationality", quality_gates=gates)  # a second run keeps it that way
+    assert w.cur.execute("select rarity is null as n from prompts where id = %s", (prompt["id"],)).fetchone()["n"]
+    with pytest.raises(Exception, match="prompts_approved_has_rarity"), conn.transaction():
+        w.cur.execute("update prompts set status = 'approved' where id = %s", (prompt["id"],))
+    with pytest.raises(Exception, match="prompts_rarity_is_object"), conn.transaction():
+        w.cur.execute("update prompts set rarity = 'null'::jsonb where id = %s", (prompt["id"],))
+
+
+def test_check_reports_contradictions_between_the_stored_fields(conn, capsys):
+    w = World(conn)
+    club_a_citizens(w, graded)
+    w.run("club_nationality")
+    prompt, _ = prompt_and_answers(w)
+    assert check(conn, w.comp["id"]) == 0
+    capsys.readouterr()
+    w.cur.execute("update prompts set status = 'gate_failed' where id = %s", (prompt["id"],))
+    w.cur.execute("update prompts set answer_count = answer_count + 1 where id = %s", (prompt["id"],))
+    w.cur.execute("update prompts set rarity = rarity - 'reference_season' where id = %s", (prompt["id"],))
+    assert check(conn, w.comp["id"]) == 3
+    out = capsys.readouterr().out
+    assert "status 'gate_failed' contradicts" in out and "answer_count 16 but 15 answer rows" in out
+    assert "has no reference_season" in out
+    # a rating on a prompt that failed the size gate is a contradiction too
+    w.cur.execute("update prompts set gate_results = jsonb_set(gate_results, '{size,pass}', 'false') where id = %s",
+                  (prompt["id"],))
+    assert check(conn, w.comp["id"]) >= 1
+    assert "fails the size gate but has rarity of type object" in capsys.readouterr().out
+
+
+def test_the_database_refuses_half_rated_answers_and_uncapped_tiers_and_unrated_approvals(conn):
     w = World(conn)
     club_a_citizens(w, graded)
     w.run("club_nationality")
