@@ -16,8 +16,10 @@ from prompts.templates import TEMPLATES
 from .calibrate import (
     all_group_stats,
     gut_report,
+    gut_sweep,
     load_aliases,
     parse_sweep,
+    print_gut_sweep,
     print_summary,
     rate_all,
     read_gut,
@@ -148,7 +150,13 @@ def preview(conn, competition_qid: str, tunables: dict, template_ids: list[str] 
     with conn.cursor(row_factory=dict_row) as cur:
         if gut:
             entries = read_gut(gut_path)
-            prompts = load_prompts(cur, ids=[e["id"] for e in entries if "id" in e], all_statuses=True)
+            gut_ids = [e["id"] for e in entries if "id" in e]
+            if grid:  # the sweep also needs every size-passing prompt for the tier-gate yield
+                prompts = load_prompts(cur, n_range=(gates["min_answers"], gates["max_answers"]))
+                have = {p.id for p in prompts}
+                prompts += load_prompts(cur, ids=[i for i in gut_ids if i not in have], all_statuses=True)
+            else:
+                prompts = load_prompts(cur, ids=gut_ids, all_statuses=True)
         else:
             # every size-passing prompt at the lowest alternative minimum, whatever its stored status
             lowest = min(gates["report_min_answers_alternatives"] + [gates["min_answers"]])
@@ -158,6 +166,12 @@ def preview(conn, competition_qid: str, tunables: dict, template_ids: list[str] 
     features = {p.id: compute_features(p.answer_set, ev) for p in prompts}
     print(f"{len(prompts)} prompts; reference season {ev.params.reference_season}, "
           f"ref date {ev.params.ref_date}; fame weights {ev.fame_weights}")
+    if gut and grid:
+        if entries:
+            print_gut_sweep(gut_sweep(entries, prompts, features, aliases, tunables, mp, grid), gates["min_answers"])
+        else:
+            print(gut_report(entries, {}, aliases, mp, gut_path))
+        return
     if gut:
         print(gut_report(entries, {r.prompt.id: r for r in rate_all(prompts, features, mp)}, aliases, mp, gut_path))
         return

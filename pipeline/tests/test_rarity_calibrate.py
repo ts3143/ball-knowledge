@@ -132,3 +132,25 @@ def test_group_stats_counts_gate_passes_reasons_and_flagged_deep_answers():
     assert s["deep_flagged"] == 1 and s["deep_answers"] == good.result.gate["tier_counts"][3] + good.result.gate["tier_counts"][4]
     assert s["cross"][(False, True)] == 1 and s["cross"][(True, False)] == 1
     assert math.isclose(s["top_share"], statistics.median(r.result.gate["top_share"] for r in (good, bad)))
+
+
+def test_gut_sweep_runs_every_combination_and_sorts_best_first():
+    from rarity.calibrate import gut_sweep
+    p = prompt()
+    feats = {i: Features(0, 0, 10.0 ** (8 - 0.5 * i), 5.0, 1.0) for i in NAMES}
+    entries = [{"id": 900, "top": ["Anna Müller", "Ben Placeholder", "Nobody Here"], "bottom": ["Lou Lima", "Kim Kilo"]}]
+    tunables = {"quality_gates": {"min_answers": 12, "max_answers": 300}}
+    grid = {"alpha": [0.8, 1.0], "beta": [0.5, 1.1]}
+    rows = gut_sweep(entries, [p], {900: feats}, {}, tunables, MP, grid)
+    assert len(rows) == 4
+    assert {tuple(r["params"].items()) for r in rows} == {
+        (("alpha", a), ("beta", b)) for a in (0.8, 1.0) for b in (0.5, 1.1)}
+    for r in rows:
+        assert r["gut"].pairs == 4 and r["gut"].concordance == 1.0 and r["gut"].top_size == 2
+        assert r["sized"] == 1 and r["passed"] in (0, 1)
+    # a prompt that is not in the database is reported, not fatal
+    assert len(gut_sweep([{"id": 1, "top": ["x"]}], [p], {900: feats}, {}, tunables, MP, {"alpha": [0.8]})) == 1
+    # sorted: flipping T's lists puts the worst ordering last
+    worse = gut_sweep(entries + [{"id": 900, "top": ["Lou Lima"], "bottom": ["Anna Müller"]}], [p], {900: feats}, {},
+                      tunables, MP, {"alpha": [0.8]})
+    assert worse[0]["gut"].top_deep == 1

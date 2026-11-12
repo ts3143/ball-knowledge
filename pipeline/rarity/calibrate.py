@@ -240,6 +240,24 @@ def read_gut(path: Path) -> list[dict]:
     return [e for e in tomllib.loads(path.read_text()).get("prompt", []) if e.get("top") or e.get("bottom")]
 
 
+def resolve_lists(entry: dict, names: dict[int, str], aliases: dict[int, list[str]]) -> tuple[dict[str, list[int]], list[str]]:
+    """T's top and bottom names of one sheet prompt as entity ids, and an error line for every name that is
+    unknown, ambiguous or listed twice. The good names are kept."""
+    lists, errors = {}, []
+    for which in ("top", "bottom"):
+        ids = []
+        for name in entry.get(which, []):
+            e, err = resolve_name(name, names, {e: aliases.get(e, []) for e in names})
+            if e is None:
+                errors.append(f"{which}: {err}")
+            elif e in ids:
+                errors.append(f"{which}: {name!r} is listed twice")
+            else:
+                ids.append(e)
+        lists[which] = ids
+    return lists, errors
+
+
 def gut_report(entries: list[dict], rated: dict[int, Rated], aliases: dict[int, list[str]], mp: ModelParams,
                path: Path) -> str:
     """The text report. `rated` maps prompt id to its Rated; entries are the filled-in sheet prompts."""
@@ -253,18 +271,7 @@ def gut_report(entries: list[dict], rated: dict[int, Rated], aliases: dict[int, 
             out.append(f"[{pid}] not found in the database; skipped")
             continue
         names = {e: r.prompt.names[e] for e in r.features}
-        lists, errors = {}, []
-        for which in ("top", "bottom"):
-            ids = []
-            for name in entry.get(which, []):
-                e, err = resolve_name(name, names, {e: aliases.get(e, []) for e in names})
-                if e is None:
-                    errors.append(f"{which}: {err}")
-                elif e in ids:
-                    errors.append(f"{which}: {name!r} is listed twice")
-                else:
-                    ids.append(e)
-            lists[which] = ids
+        lists, errors = resolve_lists(entry, names, aliases)
         out.append(f"\n[{pid}] {r.prompt.text}")
         out += [f"  ERROR {x}" for x in errors]
         g = gut_result(r.result, lists["top"], lists["bottom"], n_tiers)
@@ -285,3 +292,49 @@ def gut_report(entries: list[dict], rated: dict[int, Rated], aliases: dict[int, 
     out.append(f"bar: concordance >= {CONCORDANCE_BAR} and {TIER_MISS_BAR} T-top answers in Deep Cut or You Know Ball: "
                + verdict)
     return "\n".join(out)
+
+
+def gut_sweep(entries: list[dict], prompts, features, aliases: dict[int, list[str]], tunables: dict,
+              mp: ModelParams, grid: dict[str, list[float]]) -> list[dict]:
+    """One row per combination of the grid: T's lists against the model, and the tier-gate yield over all
+    `prompts` at the minimum answers. Features are computed by the caller, once. Rows are sorted by T-top
+    answers in Deep Cut or deeper, then in Real One or deeper, then descending concordance."""
+    gates = tunables["quality_gates"]
+    by_id = {p.id: p for p in prompts}
+    resolved, errors = [], []
+    for entry in entries:
+        p = by_id.get(entry.get("id"))
+        if p is None:
+            errors.append(f"[{entry.get('id')}] not found in the database; skipped")
+            continue
+        lists, errs = resolve_lists(entry, p.names, aliases)
+        errors += [f"[{p.id}] {x}" for x in errs]
+        resolved.append((p.id, lists["top"], lists["bottom"]))
+    for line in errors:
+        print("ERROR " + line)
+    keys, rows = list(grid), []
+    for combo in itertools.product(*grid.values()):
+        p = replace(mp, **dict(zip(keys, combo)))
+        rated = rate_all(prompts, features, p)
+        by_rated = {r.prompt.id: r for r in rated}
+        total, per_prompt = GutResult(), {}
+        for pid, top, bottom in resolved:
+            g = per_prompt[pid] = gut_result(by_rated[pid].result, top, bottom, len(p.tier_names))
+            total.add(g)
+        sized = [r for r in rated if gates["min_answers"] <= r.n <= gates["max_answers"]]
+        rows.append({"params": dict(zip(keys, combo)), "gut": total, "per_prompt": per_prompt,
+                     "passed": sum(r.result.gate["pass"] for r in sized), "sized": len(sized)})
+    rows.sort(key=lambda r: (r["gut"].top_deep, r["gut"].top_real_one_or_deeper, -(r["gut"].concordance or 0)))
+    return rows
+
+
+def print_gut_sweep(rows: list[dict], min_answers: int) -> None:
+    print(f"\nGUT SWEEP, sorted by T-top in Deep Cut+, T-top in Real One+, then concordance (higher is better). "
+          f"T-top misses: bar is 0 in Deep Cut+. Yield is the tier gate at min {min_answers}.")
+    for r in rows:
+        g = r["gut"]
+        label = " ".join(f"{k}={v:g}" for k, v in r["params"].items())
+        c = "-" if g.concordance is None else f"{g.concordance:.3f}"
+        print(f"{label:<40} conc {c}  top5 {g.top_overlap}/{g.top_size}  bottom5 {g.bottom_overlap}/{g.bottom_size}  "
+              f"T-top RealOne+ {g.top_real_one_or_deeper}  T-top DeepCut+ {g.top_deep}  "
+              f"T-bottom Casual- {g.bottom_casual_or_shallower}  yield {r['passed']}/{r['sized']}")
