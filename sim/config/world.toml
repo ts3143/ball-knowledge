@@ -49,3 +49,15 @@ wrong_scale = 0.15
 [world.model_wrong]
 answer_noise_sd = 1.0
 template_noise_sd = 0.5
+
+# The two scenarios (step 4). `simulation run --scenario ...` replays each of `seeds` worlds (seed, seed + 1, ...).
+# population: tuning and the pass bars. testers: the closed beta, where chance matters.
+[scenarios.population]
+players = 1000
+dates = 61
+seeds = 3
+
+[scenarios.testers]
+players = 15
+dates = 28
+seeds = 200

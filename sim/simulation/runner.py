@@ -48,7 +48,7 @@ def clean(obj):
     if isinstance(obj, (list, tuple)):
         return [clean(v) for v in obj]
     if isinstance(obj, (np.floating, float)):
-        return round(float(obj), ROUND)
+        return None if np.isnan(obj) else round(float(obj), ROUND)  # NaN is not JSON
     if isinstance(obj, np.integer):
         return int(obj)
     return obj

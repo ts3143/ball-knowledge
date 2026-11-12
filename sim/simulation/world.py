@@ -23,6 +23,14 @@ def load_world_config(overrides: list[str] | None = None, path: Path = WORLD_PAT
     return apply_overrides({"world": cfg}, overrides or [])["world"]
 
 
+def load_scenarios(overrides: list[str] | None = None, path: Path = WORLD_PATH) -> dict:
+    from rating.params import apply_overrides
+
+    with open(path, "rb") as f:
+        scenarios = tomllib.load(f)["scenarios"]
+    return apply_overrides({"scenarios": scenarios}, overrides or [])["scenarios"]
+
+
 def streams(seed: int) -> dict[str, np.random.Generator]:
     """Independent random streams, so changing e.g. the answers' draws never changes the population."""
     return {name: np.random.default_rng(s) for name, s in zip(STREAMS, np.random.SeedSequence(seed).spawn(len(STREAMS)))}

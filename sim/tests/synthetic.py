@@ -23,10 +23,13 @@ def make_document(n_prompts: int = 12, seed: int = 5) -> dict:
         model_tiers = model.assign_tiers(scores, shares, mp.cumulative_share)
         tiers = model.effective_tiers(model_tiers, weak, mp)
         gate = model.tier_gate(tiers, shares, mp)
+        points = {e: model.answer_points(tiers[e], False, mp) for e in entities}
+        expected, mass = model.difficulty_seed(shares, points, scores)
         prompts.append({
             "id": pid, "template": f"template_{pid % 3}", "status": "gate_passed", "competition_id": 900,
             "club_ids": sorted({int(c) for c in rng.choice([11, 12, 13, 14], size=int(rng.integers(0, 3)), replace=False)}),
-            "answer_count": n, "rarity": {"model_version": model.MODEL_VERSION, "params": mp.to_params()},
+            "answer_count": n, "rarity": {"model_version": model.MODEL_VERSION, "params": mp.to_params(), "expected_points": expected,
+                       "log_recall_mass": mass},
             "top_share": gate["top_share"], "n_eff": gate["n_eff"],
             "answers": [{"entity_id": e, "score": scores[e], "predicted_share": shares[e], "model_tier": model_tiers[e],
                          "tier": tiers[e], "points": model.answer_points(tiers[e], False, mp), "weak": e in weak,

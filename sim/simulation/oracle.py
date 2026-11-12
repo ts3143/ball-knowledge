@@ -74,4 +74,7 @@ def spearman(a: np.ndarray, b: np.ndarray) -> float:
             r[tied] = r[tied].mean()
         return r
 
-    return float(np.corrcoef(ranks(np.asarray(a)), ranks(np.asarray(b)))[0, 1])
+    a, b = np.asarray(a), np.asarray(b)
+    if np.ptp(a) == 0 or np.ptp(b) == 0:
+        return float("nan")  # a constant has no ranking
+    return float(np.corrcoef(ranks(a), ranks(b))[0, 1])
