@@ -64,7 +64,6 @@ def group_stats(items: list[Rated], min_alternatives: list[int], min_answers: in
                       for r in base for x in r.result.gate["reasons"])
     deep = [(e, r) for r in base for e, t in r.result.tiers.items() if t >= n_tiers - 1]
     flagged_deep = sum(bool(r.prompt.flags[e]) for e, r in deep)  # stored weak_stint / edge_season flags
-    cross = Counter((r.prompt.mix_pass, r.result.gate["pass"]) for r in base if r.prompt.mix_pass is not None)
 
     def med(values):
         return statistics.median(values) if values else 0.0
@@ -75,7 +74,7 @@ def group_stats(items: list[Rated], min_alternatives: list[int], min_answers: in
         "top_share": med([r.result.gate["top_share"] for r in base]),
         "n_eff_ratio": med([r.result.gate["n_eff"] / r.n for r in base]),
         "expected_points": quantiles([r.result.expected_points for r in base]),
-        "deep_answers": len(deep), "deep_flagged": flagged_deep, "cross": cross}
+        "deep_answers": len(deep), "deep_flagged": flagged_deep}
 
 
 def all_group_stats(rated: list[Rated], tunables: dict, mp: ModelParams) -> dict[str, dict]:
@@ -114,12 +113,6 @@ def print_summary(stats: dict[str, dict], tunables: dict, mp: ModelParams) -> No
     print("\nWeak or edge-flagged answers in the two deepest tiers (flagged / all answers there):")
     for t, s in stats.items():
         print(f"  {t:<24} {s['deep_flagged']:>4} / {s['deep_answers']}")
-    print("\nAdvisory step-2 mix verdict (rows) against the tier gate (columns), prompt counts:")
-    print(f"  {'':<24}{'mix pass':>20}{'mix fail':>20}")
-    print(f"  {'':<24}{'tier pass':>10}{'tier fail':>10}{'tier pass':>10}{'tier fail':>10}")
-    for t, s in stats.items():
-        c = s["cross"]
-        print(f"  {t:<24}{c[(True, True)]:>10}{c[(True, False)]:>10}{c[(False, True)]:>10}{c[(False, False)]:>10}")
 
 
 # ---------------------------------------------------------------------------

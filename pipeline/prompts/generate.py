@@ -57,11 +57,7 @@ class Stats:
     weak_cap_cost: int = 0  # passes the tier gate on model tiers, fails it on capped tiers
     too_few: int = 0
     too_many: int = 0
-    too_few_obvious: int = 0  # advisory mix gate, over all generated prompts
-    too_few_obscure: int = 0
-    mix_would_fail: int = 0  # advisory: size-passing prompts whose mix gate would fail
     pass_at_min: dict[int, int] = field(default_factory=dict)  # size only
-    pass_at_min_mix: dict[int, int] = field(default_factory=dict)  # size, and the advisory mix would pass
     inserted: int = 0
     updated: int = 0
     unchanged: int = 0
@@ -104,14 +100,13 @@ def generate(conn: psycopg.Connection, competition_qid: str, tunables: dict,
         wording_ctx = {"start_year": tunables["ingest"]["start_year"], "competition": comp["canonical_name"]}
         quality_gates = tunables["quality_gates"]
 
-        # The mix gate's quantiles span every template's answer sets, so all templates are always
-        # evaluated; --template only limits what is stored.
+        # All templates are always evaluated; --template only limits what is stored.
         by_template = {}
         for template in TEMPLATES.values():
             log(f"{template.id}: enumerating params")
             by_template[template.id] = _generate_template(conn, cur, template, ctx, wording_ctx)
             log(f"{template.id}: {len(by_template[template.id])} prompts")
-        _apply_gates([g for gs in by_template.values() for g in gs], cur, quality_gates)
+        _apply_gates([g for gs in by_template.values() for g in gs], quality_gates)
 
         _rate([g for t in stored for g in by_template[t.id]], cur, competition_qid, tunables)
         return {t.id: _store(cur, t, comp["id"], by_template[t.id], facts_as_of, quality_gates) for t in stored}
@@ -142,21 +137,10 @@ def _generate_template(conn, cur, template: Template, ctx: dict, wording_ctx: di
     return out
 
 
-def _apply_gates(generated: list[Generated], cur, quality_gates: dict) -> None:
-    """Size and mix gates. Fame is the entity's total de+en pageviews; the mix cutoffs are quantiles
-    over all entities of the same type that appear in any answer set."""
-    ids = {e for g in generated for e in g.answers}
-    cur.execute("select e.id, e.type::text as type, coalesce(sum(v.views), 0)::bigint as fame from entities e"
-                " left join entity_pageviews v on v.entity_id = e.id where e.id = any(%s) group by e.id",
-                (list(ids),))
-    rows = cur.fetchall()
-    fame = {r["id"]: r["fame"] for r in rows}
-    cutoffs = {t: gates.fame_cutoffs([r["fame"] for r in rows if r["type"] == t], quality_gates)
-               for t in {r["type"] for r in rows}}
+def _apply_gates(generated: list[Generated], quality_gates: dict) -> None:
+    """The size gate; the rarity stage adds the tier gate for the prompts that pass it."""
     for g in generated:
-        mix = gates.mix_gate([fame[e] for e in g.answers], cutoffs.get(g.template.answer_type, (0, 0)),
-                             quality_gates)
-        g.gate_results = gates.gate_results(len(g.answers), quality_gates, mix)
+        g.gate_results = gates.gate_results(len(g.answers), quality_gates)
         g.status = gates.status(g.gate_results)
 
 
@@ -183,20 +167,16 @@ def _store(cur, template: Template, competition_id: int, generated: list[Generat
            quality_gates: dict) -> Stats:
     stats = Stats(generated=len(generated))
     for g in generated:
-        size, mix = g.gate_results["size"], g.gate_results["mix"]
+        size = g.gate_results["size"]
         stats.gate_passed += g.status == "gate_passed"
         stats.size_passed += size["pass"]
         stats.tier_failed += g.rarity is not None and not g.gate_results["tiers"]["pass"]
         stats.weak_cap_cost += g.weak_cap_cost
-        stats.mix_would_fail += size["pass"] and not mix["pass"]
         stats.too_few += size["n"] < size["min"]
         stats.too_many += size["n"] > size["max"]
-        stats.too_few_obvious += mix["obvious"] < mix["min_obvious"]
-        stats.too_few_obscure += mix["obscure"] < mix["min_obscure"]
     for alt in quality_gates["report_min_answers_alternatives"]:
         sized = [g for g in generated if alt <= len(g.answers) <= quality_gates["max_answers"]]
         stats.pass_at_min[alt] = len(sized)
-        stats.pass_at_min_mix[alt] = sum(g.gate_results["mix"]["pass"] for g in sized)
 
     cur.execute("select id, params, status, text, answer_query, club_ids, gate_results, answer_count, rarity"
                 " from prompts where competition_id = %s and template = %s", (competition_id, template.id))
@@ -281,12 +261,8 @@ def print_summary(stats: dict[str, Stats], dry_run: bool) -> None:
     for template_id, s in stats.items():
         print(f"\n{template_id}")
         print(f"  generated {s.generated}   gate_passed {s.gate_passed}   "
-              f"failed: too few {s.too_few}, too many {s.too_many}, tier gate {s.tier_failed}   "
-              f"(advisory mix: too few obvious {s.too_few_obvious}, too few obscure {s.too_few_obscure})")
-        print(f"  mix (advisory, not rejecting): would fail for {s.mix_would_fail} of the {s.gate_passed} gate_passed")
-        print("  would pass size at min answers  " + "   ".join(f"{m}: {n}" for m, n in s.pass_at_min.items())
-              + "   (of which mix would pass: "
-              + ", ".join(f"{m}: {n}" for m, n in s.pass_at_min_mix.items()) + ")")
+              f"failed: too few {s.too_few}, too many {s.too_many}, tier gate {s.tier_failed}")
+        print("  would pass size at min answers  " + "   ".join(f"{m}: {n}" for m, n in s.pass_at_min.items()))
         print(f"  size gate passed {s.size_passed}, tier gate blocks {s.tier_failed} of those "
               f"(the weak-answer cap alone costs {s.weak_cap_cost})")
         print(f"  inserted {s.inserted}   updated {s.updated}   unchanged {s.unchanged}   deleted {s.deleted}")

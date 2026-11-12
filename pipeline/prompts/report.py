@@ -1,5 +1,6 @@
-"""Read-only report on the stored prompts: yields and gate failures per template, a seeded sample,
-a name check against Wikipedia titles, weak-evidence reasons, and the review files for T.
+"""Read-only report on the stored prompts: yields, tier-gate results and tier spreads per template, a seeded
+sample, a name check against Wikipedia titles, weak-evidence reasons, and the review files for T (the
+approval material: per-prompt tier tables, summary.md, prompts.csv and answers.csv).
 
 Everything is read from the database; nothing is generated or written there.
 """
@@ -8,6 +9,7 @@ import csv
 import json
 import random
 import re
+import statistics
 from collections import Counter
 from datetime import date
 from pathlib import Path
@@ -17,6 +19,7 @@ from psycopg.rows import dict_row
 
 from ingest.normalize import normalize
 from ingest.report import _q
+from rarity.model import ModelParams, tier_gate
 
 from .generate import current_from_year
 from .templates import TEMPLATES
@@ -48,22 +51,27 @@ def render_evidence(fact: dict) -> str:
 class Data:
     """Stored prompts and their answers, loaded once."""
 
-    def __init__(self, cur, quality_gates: dict, current_from_year: int):
+    def __init__(self, cur, quality_gates: dict, current_from_year: int, tier_names: list[str]):
         self.qg = quality_gates
-        self.prompts = [dict(zip(("id", "template", "params", "text", "status", "answer_count", "gate_results"), r))
-                        for r in _q(cur, "select id, template, params, text, status, answer_count, gate_results"
-                                         " from prompts order by template, id")]
+        self.tier_names = tier_names
+        self.prompts = [dict(zip(("id", "template", "params", "text", "status", "answer_count", "gate_results",
+                                  "rarity"), r))
+                        for r in _q(cur, "select id, template, params, text, status, answer_count, gate_results,"
+                                         " rarity from prompts order by template, id")]
         by_id = {p["id"]: p for p in self.prompts}
         for p in self.prompts:
             p["answers"] = []
         for r in _q(cur,
                     "select a.prompt_id, a.entity_id, e.canonical_name, a.flags, a.evidence_fact_ids,"
-                    " coalesce((select sum(v.views) from entity_pageviews v where v.entity_id = e.id), 0)::bigint"
+                    " a.views_de, a.views_en, a.tie_amount, a.seasons_since, a.predicted_share, a.tier,"
+                    " a.model_tier, a.points"
                     " from prompt_answers a join entities e on e.id = a.entity_id"
                     " order by a.prompt_id, a.entity_id"):
-            by_id[r[0]]["answers"].append(dict(zip(("entity_id", "name", "flags", "fact_ids", "views"), r[1:])))
-        for p in self.prompts:
-            p["answers"].sort(key=lambda a: (-a["views"], a["name"]))
+            by_id[r[0]]["answers"].append(dict(zip(
+                ("entity_id", "name", "flags", "fact_ids", "views_de", "views_en", "tie", "since", "share", "tier",
+                 "model_tier", "points"), r[1:])))
+        for p in self.prompts:  # most likely pick first; unrated answers (a prompt that failed the size gate) last
+            p["answers"].sort(key=lambda a: (-(a["share"] or 0), a["name"]))
 
         fact_ids = list({f for p in self.prompts if p["status"] == "gate_passed"
                          for a in p["answers"] for f in a["fact_ids"]})
@@ -87,40 +95,53 @@ class Data:
         return [p for p in self.prompts if p["template"] == template_id]
 
 
+def tier_gate_reason(reason: str) -> str:
+    """'Bandwagon too big: 9 of 20 answers (max 6.80)' -> 'Bandwagon too big'."""
+    return reason.split(":")[0] if reason.startswith("Bandwagon") else reason
+
+
+def weak_cap_lost(p: dict) -> bool:
+    """True when a size-passing prompt fails the tier gate on its capped tiers but would pass on the model's."""
+    gate = p["gate_results"].get("tiers")
+    if not isinstance(gate, dict) or gate["pass"] or p["rarity"] is None:
+        return False
+    answers = p["answers"]
+    mp = ModelParams.from_params(p["rarity"]["params"])
+    return tier_gate({a["entity_id"]: a["model_tier"] for a in answers},
+                     {a["entity_id"]: a["share"] for a in answers}, mp)["pass"]
+
+
 def template_numbers(data: Data, template_id: str) -> dict:
     prompts, passing = data.of(template_id), data.passing(template_id)
     gr = [p["gate_results"] for p in prompts]
-    mixes = [g["mix"] for g in gr if isinstance(g["mix"], dict)]  # "not_run" before the mix gate existed
+    tiers = [g["tiers"] for g in gr if isinstance(g["tiers"], dict)]
+    rated = [p for p in passing if p["rarity"] is not None]
     answers = [a for p in passing for a in p["answers"]]
+    deep = [a for a in answers if a["tier"] is not None and a["tier"] >= len(data.tier_names) - 1]
     maximum = data.qg["max_answers"]
+
+    def med(values):
+        return statistics.median(values) if values else 0.0
+
     return {
         "generated": len(prompts), "passed": len(passing),
         "too_few": sum(g["size"]["n"] < g["size"]["min"] for g in gr),
         "too_many": sum(g["size"]["n"] > g["size"]["max"] for g in gr),
-        "too_few_obvious": sum(m["obvious"] < m["min_obvious"] for m in mixes),
-        "too_few_obscure": sum(m["obscure"] < m["min_obscure"] for m in mixes),
-        "mix_would_fail": sum(not mix_passes(p["gate_results"]) for p in passing),
+        "size_passed": sum(g["size"]["pass"] for g in gr),
+        "tier_failed": sum(not t["pass"] for t in tiers),
+        "tier_reasons": Counter(tier_gate_reason(r) for t in tiers for r in t["reasons"]),
+        "weak_cap_lost": sum(weak_cap_lost(p) for p in prompts),
         "yield": {alt: sum(alt <= p["answer_count"] <= maximum for p in prompts)
                   for alt in data.qg["report_min_answers_alternatives"]},
-        "yield_mix": {alt: sum(alt <= p["answer_count"] <= maximum and mix_passes(p["gate_results"])
-                               for p in prompts) for alt in data.qg["report_min_answers_alternatives"]},
+        "tier_counts": [med([p["gate_results"]["tiers"]["tier_counts"][k] for p in rated])
+                        for k in range(len(data.tier_names))],
+        "top_share": med([p["gate_results"]["tiers"]["top_share"] for p in rated]),
+        "expected_points": med([p["rarity"]["expected_points"] for p in rated]),
         "answers": len(answers),
         "weak": sum("weak_stint" in a["flags"] for a in answers),
         "edge": sum("edge_season" in a["flags"] for a in answers),
+        "deep": len(deep), "deep_flagged": sum(bool(a["flags"]) for a in deep),
     }
-
-
-def mix_passes(results: dict) -> bool:
-    """A mix gate that did not run counts as not passed."""
-    return isinstance(results["mix"], dict) and results["mix"]["pass"]
-
-
-def mix_line(results: dict) -> str:
-    mix = results["mix"]
-    if not isinstance(mix, dict):
-        return "mix (advisory): not run"
-    verdict = "would pass" if mix["pass"] else "would fail"
-    return f"mix (advisory): {mix['obvious']} obvious / {mix['obscure']} obscure, {verdict}"
 
 
 def pct(n: int, total: int) -> str:
@@ -128,15 +149,19 @@ def pct(n: int, total: int) -> str:
 
 
 def format_numbers(n: dict) -> list[str]:
+    reasons = ", ".join(f"{r} {c}" for r, c in n["tier_reasons"].most_common()) or "-"
+    counts = "/".join(f"{c:g}" for c in n["tier_counts"])
     return [
         (f"generated {n['generated']}   gate_passed {n['passed']}   failed: too few {n['too_few']}, "
-         f"too many {n['too_many']}"),
-        (f"mix (advisory, not rejecting): would fail for {n['mix_would_fail']} of {n['passed']} gate_passed"
-         f"   (too few obvious {n['too_few_obvious']}, too few obscure {n['too_few_obscure']}, over all generated)"),
-        ("yield (size) at min answers  " + "   ".join(f"{m}: {c}" for m, c in n["yield"].items())
-         + "   (of which mix would pass: " + ", ".join(f"{m}: {c}" for m, c in n["yield_mix"].items()) + ")"),
+         f"too many {n['too_many']}, tier gate {n['tier_failed']}"),
+        (f"tier gate failures by reason (a prompt can have several): {reasons}; "
+         f"lost to the weak-answer cap: {n['weak_cap_lost']}"),
+        "yield (size only) at min answers  " + "   ".join(f"{m}: {c}" for m, c in n["yield"].items()),
+        (f"median over gate_passed: tiers {counts} (Bandwagon/Casual/Real One/Deep Cut/You Know Ball), "
+         f"top share {100 * n['top_share']:.1f}%, expected {n['expected_points']:.1f} pts"),
         (f"answers in passing prompts {n['answers']}   weak_stint {n['weak']} ({pct(n['weak'], n['answers'])})"
          f"   edge_season {n['edge']} ({pct(n['edge'], n['answers'])})"),
+        f"weak or edge-flagged answers in Deep Cut or You Know Ball: {n['deep_flagged']} of {n['deep']}",
     ]
 
 
@@ -154,8 +179,8 @@ def weak_breakdown(data: Data) -> tuple[int, Counter]:
     return total, reasons
 
 
-def views_line(answers: list[dict]) -> str:
-    return ", ".join(f"{a['name']} {a['views']:,}" for a in answers)
+def picks_line(data: Data, answers: list[dict]) -> str:
+    return ", ".join(f"{a['name']} ({data.tier_names[a['tier'] - 1]}, {100 * a['share']:.1f}%)" for a in answers)
 
 
 def print_report(conn: psycopg.Connection, competition_qid: str, tunables: dict, write_review: bool) -> None:
@@ -166,7 +191,7 @@ def print_report(conn: psycopg.Connection, competition_qid: str, tunables: dict,
             raise SystemExit(f"No competition entity {competition_qid}; run the ingest first.")
         from_year = current_from_year(cur, comp["id"], competition_qid, tunables)
     with conn.cursor() as cur:
-        data = Data(cur, tunables["quality_gates"], from_year)
+        data = Data(cur, tunables["quality_gates"], from_year, tunables["tiers"]["names"])
     qg = tunables["quality_gates"]
     rng = random.Random(qg["report_sample_seed"])
 
@@ -183,8 +208,9 @@ def print_report(conn: psycopg.Connection, competition_qid: str, tunables: dict,
         passing = data.passing(template_id)
         for p in rng.sample(passing, min(qg["report_sample_per_template"], len(passing))):
             print(f"\n[{template_id}] {p['text']}   ({p['answer_count']} answers)")
-            print("  most viewed:  " + views_line(p["answers"][:5]))
-            print("  least viewed: " + views_line(p["answers"][-5:][::-1]))
+            print("  " + prompt_header(p))
+            print("  most likely:  " + picks_line(data, p["answers"][:5]))
+            print("  least likely: " + picks_line(data, p["answers"][-5:][::-1]))
             flagged = [f"{a['name']} ({', '.join(a['flags'])})" for a in p["answers"] if a["flags"]]
             print(f"  flagged ({len(flagged)}): " + ("; ".join(flagged[:10]) + (" ..." if len(flagged) > 10 else "")
                                                      if flagged else "-"))
@@ -204,19 +230,44 @@ def print_report(conn: psycopg.Connection, competition_qid: str, tunables: dict,
         print(f"\nReview files written to {out}")
 
 
+def prompt_header(p: dict) -> str:
+    """'12 answers · tiers 2/2/3/2/3 · top 33% · expected 27.0 pts · tier gate pass' (or fail with the reasons)."""
+    gate = p["gate_results"]["tiers"]
+    if not isinstance(gate, dict):
+        return f"{p['answer_count']} answers · not rated (failed the size gate)"
+    verdict = "pass" if gate["pass"] else f"FAIL ({'; '.join(gate['reasons'])})"
+    return (f"{p['answer_count']} answers · tiers {'/'.join(map(str, gate['tier_counts']))} · "
+            f"top {100 * gate['top_share']:.0f}% · expected {p['rarity']['expected_points']:.1f} pts · "
+            f"tier gate {verdict}")
+
+
+def points_cell(a: dict, tier_names: list[str]) -> str:
+    """The points, with a note when the weak-answer cap lowered the tier."""
+    if a["tier"] != a["model_tier"]:
+        return f"{a['points']} (capped from {tier_names[a['model_tier'] - 1]})"
+    return str(a["points"])
+
+
+def evidence_text(data: Data, a: dict) -> str:
+    # Duplicate facts (e.g. two identical Wikidata statements) render once.
+    return "; ".join(dict.fromkeys(render_evidence(data.facts[f]) for f in a["fact_ids"] if f in data.facts))
+
+
 def write_review_files(data: Data, numbers: dict, review_dir: Path = REVIEW_DIR, today: date | None = None) -> Path:
     out = review_dir / (today or date.today()).isoformat()
     out.mkdir(parents=True, exist_ok=True)
+    names = data.tier_names
     for template_id in TEMPLATES:
         lines = [f"# {template_id}", ""]
         for p in data.passing(template_id):
-            lines += [f"## {p['text']}", "", f"{p['answer_count']} answers   {mix_line(p['gate_results'])}", "",
-                      "| name | views | flags | evidence |", "|---|---:|---|---|"]
+            lines += [f"## {p['text']}", "", prompt_header(p), "",
+                      "| tier | points | share | name | de views | en views | tie | seasons since | flags | evidence |",
+                      "|---|---|---:|---|---:|---:|---:|---:|---|---|"]
             for a in p["answers"]:
-                # Duplicate facts (e.g. two identical Wikidata statements) render once.
-                evidence = "; ".join(dict.fromkeys(render_evidence(data.facts[f]) for f in a["fact_ids"]
-                                                   if f in data.facts))
-                lines.append(f"| {_cell(a['name'])} | {a['views']:,} | {', '.join(a['flags'])} | {_cell(evidence)} |")
+                lines.append(
+                    f"| {names[a['tier'] - 1]} | {points_cell(a, names)} | {100 * a['share']:.1f}% | {_cell(a['name'])}"
+                    f" | {a['views_de']:,} | {a['views_en']:,} | {a['tie']:.1f} | {a['since']:.1f}"
+                    f" | {', '.join(a['flags'])} | {_cell(evidence_text(data, a))} |")
             lines.append("")
         (out / f"{template_id}.md").write_text("\n".join(lines))
 
@@ -234,10 +285,29 @@ def write_review_files(data: Data, numbers: dict, review_dir: Path = REVIEW_DIR,
 
     with (out / "prompts.csv").open("w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["template", "params", "text", "status", "answer_count", "gate_results"])
+        w.writerow(["template", "params", "text", "status", "answer_count", "model_version", "tier_counts",
+                    "top_share", "n_eff", "expected_points", "tier_gate_pass", "tier_gate_reasons", "gate_results"])
         for p in data.prompts:
+            gate, rarity = p["gate_results"]["tiers"], p["rarity"]
+            rated = isinstance(gate, dict)
             w.writerow([p["template"], json.dumps(p["params"], sort_keys=True), p["text"], p["status"],
-                        p["answer_count"], json.dumps(p["gate_results"], sort_keys=True, separators=(",", ":"))])
+                        p["answer_count"], rarity["model_version"] if rarity else "",
+                        "/".join(map(str, gate["tier_counts"])) if rated else "", gate["top_share"] if rated else "",
+                        gate["n_eff"] if rated else "", rarity["expected_points"] if rarity else "",
+                        gate["pass"] if rated else "", "; ".join(gate["reasons"]) if rated else "",
+                        json.dumps(p["gate_results"], sort_keys=True, separators=(",", ":"))])
+
+    with (out / "answers.csv").open("w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["prompt_id", "template", "prompt", "entity_id", "name", "tier", "tier_name", "model_tier",
+                    "points", "share", "views_de", "views_en", "tie_amount", "seasons_since", "flags", "evidence"])
+        for p in data.prompts:
+            if p["status"] != "gate_passed":
+                continue
+            for a in p["answers"]:
+                w.writerow([p["id"], p["template"], p["text"], a["entity_id"], a["name"], a["tier"],
+                            names[a["tier"] - 1], a["model_tier"], a["points"], a["share"], a["views_de"],
+                            a["views_en"], a["tie"], a["since"], ";".join(a["flags"]), evidence_text(data, a)])
     return out
 
 

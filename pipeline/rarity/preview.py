@@ -52,7 +52,6 @@ class StoredPrompt:
     answer_set: AnswerSet
     flags: dict[int, list[str]]
     names: dict[int, str]
-    mix_pass: bool | None = None  # the advisory step-2 mix verdict, if it ran
 
 
 def load_prompts(cur, template_ids: list[str] | None = None, prompt_id: int | None = None,
@@ -62,7 +61,7 @@ def load_prompts(cur, template_ids: list[str] | None = None, prompt_id: int | No
     keeps prompts with that many answers (inclusive) whatever their status, and ids picks prompts by id.
     `cur` must be a dict_row cursor."""
     lo, hi = n_range or (0, 0)
-    cur.execute("select id, template, text, club_ids, gate_results->'mix'->'pass' as mix_pass from prompts"
+    cur.execute("select id, template, text, club_ids from prompts"
                 " where (%s or %s or status = 'gate_passed') and (%s::text[] is null or template = any(%s))"
                 " and (%s::bigint is null or id = %s) and (%s::bigint[] is null or id = any(%s))"
                 " and (%s or (select count(*) from prompt_answers a where a.prompt_id = prompts.id) between %s and %s)"
@@ -85,8 +84,7 @@ def load_prompts(cur, template_ids: list[str] | None = None, prompt_id: int | No
         answer_set=AnswerSet(r["template"], list(r["club_ids"]),
                              {a["entity_id"]: list(a["evidence_fact_ids"]) for a in answers.get(r["id"], [])}),
         flags={a["entity_id"]: list(a["flags"]) for a in answers.get(r["id"], [])},
-        names={a["entity_id"]: a["canonical_name"] for a in answers.get(r["id"], [])},
-        mix_pass=r["mix_pass"])
+        names={a["entity_id"]: a["canonical_name"] for a in answers.get(r["id"], [])})
         for r in rows]
 
 

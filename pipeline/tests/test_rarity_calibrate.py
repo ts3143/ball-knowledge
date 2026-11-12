@@ -28,10 +28,10 @@ NAMES = {1: "Anna Müller", 2: "Ben Placeholder", 3: "Cem Ö'Neil", 4: "Dora Dum
          12: "Lou Lima", 13: "Müller Zwei"}
 
 
-def prompt(flags=None, mix_pass=True):
+def prompt(flags=None):
     answers = {i: [] for i in NAMES}
     return StoredPrompt(900, "club_pair", "Placeholder prompt", AnswerSet("club_pair", [], answers),
-                        flags or {i: [] for i in NAMES}, NAMES, mix_pass)
+                        flags or {i: [] for i in NAMES}, NAMES)
 
 
 def rated(p=None, mp=MP):
@@ -123,14 +123,13 @@ def test_group_stats_counts_gate_passes_reasons_and_flagged_deep_answers():
     r = rated()
     deepest = max(r.result.tiers, key=lambda e: (r.result.tiers[e], e))
     flags[deepest] = ["weak_stint"]
-    good = rated(prompt(flags, mix_pass=False))
+    good = rated(prompt(flags))
     flat = {i: Features(0, 0, 1000.0, 5.0, 1.0) for i in NAMES}  # every score equal: one Casual block
     bad = Rated(prompt(), flat, rate_prompt(flat, MP))
     s = group_stats([good, bad], [10, 12], 12, 300, 5)
     assert s["yields"] == {10: (1, 2), 12: (1, 2)} and s["base"] == 2
     assert s["reasons"]["empty tier: Bandwagon"] == 1
     assert s["deep_flagged"] == 1 and s["deep_answers"] == good.result.gate["tier_counts"][3] + good.result.gate["tier_counts"][4]
-    assert s["cross"][(False, True)] == 1 and s["cross"][(True, False)] == 1
     assert math.isclose(s["top_share"], statistics.median(r.result.gate["top_share"] for r in (good, bad)))
 
 
