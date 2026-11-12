@@ -91,6 +91,10 @@ def test_spearman_handles_ties_and_order():
     assert -1 <= spearman(np.array([1, 1, 2, 3.0]), np.array([1, 2, 2, 3.0])) <= 1
 
 
+def test_spearman_ties_are_averaged_on_the_unsorted_input():
+    assert spearman(np.array([1, 3, 2, 1.0]), np.array([0, 4, 3, 2.0])) == pytest.approx(0.9486832980505139, abs=1e-15)
+
+
 def test_retiering_passes_on_a_consistent_snapshot_and_fails_on_a_tampered_one():
     assert check_retiering(from_document(DOC)) == len(DOC["prompts"])
     tampered = copy.deepcopy(DOC)

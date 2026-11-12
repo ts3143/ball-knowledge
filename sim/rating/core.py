@@ -21,6 +21,12 @@ class VolatilityError(RuntimeError):
     """The volatility step did not converge within MAX_ITERATIONS."""
 
 
+class DegeneratePeriodError(ValueError):
+    """Every game of the period has an expected result of exactly 0 or 1 (a rating gap beyond about 6000 points),
+    so the games carry no information (v is infinite) and the update is undefined. Glickman's system has no rule
+    for it; we refuse rather than invent one. Real ratings stay far from this."""
+
+
 @dataclass(frozen=True)
 class Opponent:
     rating: float
@@ -51,7 +57,10 @@ def _g(phi: float) -> float:
 
 
 def _expected(mu: float, mu_j: float, g_j: float) -> float:
-    return 1.0 / (1.0 + math.exp(-g_j * (mu - mu_j)))
+    try:
+        return 1.0 / (1.0 + math.exp(-g_j * (mu - mu_j)))
+    except OverflowError:  # exp overflows where JS gives Infinity: E is 0
+        return 0.0
 
 
 def new_volatility(phi: float, volatility: float, delta: float, v: float, tau: float,
@@ -110,6 +119,8 @@ def rate_period(rating: float, rd: float, volatility: float, idle_periods: int,
         e = _expected(mu, (o.rating - CENTER) / SCALE, g)
         inv_v += w * g * g * e * (1.0 - e)
         gain += w * g * (o.score - e)
+    if not inv_v > 0.0:
+        raise DegeneratePeriodError(f"expected results saturate (rating {rating:g}, RD {rd:g}): no information to rate")
     v = 1.0 / inv_v
     delta = v * gain
     sigma, iterations, bracket = new_volatility(phi, volatility, delta, v, params.tau,

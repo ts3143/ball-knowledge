@@ -6,7 +6,6 @@ import pytest
 
 from rating.core import idle_rd
 from rating.params import load_tunables
-from simulation.answers import sample_prompt  # noqa: F401
 from simulation.commands import fit_seed_command, load_sim_tunables, run_command
 from simulation.experiment import Task, aggregate, evaluate_bars, run_task
 from simulation.metrics import percentile_matrix

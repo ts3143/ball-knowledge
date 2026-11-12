@@ -1,7 +1,28 @@
 import { afterAll, describe, expect, it } from "vitest";
 import golden from "../../sim/tests/glicko2_cases.json";
-import { ENGINE_VERSION, ratePeriod, replay, type Game, type Params, type Prompt } from "./index";
+import {
+  DegeneratePeriodError, ENGINE_VERSION, promptFeatures, ratePeriod, replay, type Game, type Opponent, type Params,
+  type Prompt,
+} from "./index";
 import { GLICKMAN } from "./example";
+
+interface CoreCase {
+  name: string;
+  params: { tau: number; volatility_epsilon: number; game_weight: number; initial_rd: number };
+  input: { rating: number; rd: number; volatility: number; idle_periods: number; opponents: Opponent[] };
+  expected?: { rating: number; rd: number; volatility: number };
+  published?: { rating: number; rd: number; volatility: number };
+  expected_error?: string;
+}
+interface FeatureCase {
+  name: string;
+  rarity: Record<string, unknown>;
+  gate_results: Record<string, unknown>;
+  expected?: { log_recall_mass: number; ln_n_eff: number };
+  expected_error?: string;
+}
+const coreCases = golden.core as CoreCase[];
+const featureCases = golden.features as FeatureCase[];
 
 const TOLERANCE = golden.relative_tolerance;
 const ABS_TOLERANCE = 1e-9; // for values at or near 0 (a relative difference means nothing there)
@@ -50,19 +71,27 @@ afterAll(() => {
 describe("golden file", () => {
   it("has the engine version of the TypeScript port", () => {
     expect(golden.engine_version).toBe(ENGINE_VERSION);
-    expect(ENGINE_VERSION).toBe("bk-glicko-1");
+    expect(ENGINE_VERSION).toBe("bk-glicko-2");
     expect(TOLERANCE).toBe(1e-6);
   });
 
   it("holds the expected number of cases", () => {
-    expect(golden.core).toHaveLength(57);
-    expect(golden.replay).toHaveLength(6);
+    expect(golden.core).toHaveLength(59);
+    expect(coreCases.filter((c) => c.expected_error !== undefined)).toHaveLength(2);
+    expect(golden.features).toHaveLength(10);
+    expect(golden.replay).toHaveLength(9);
   });
 });
 
 describe("core cases", () => {
-  it.each(golden.core.map((c) => [c.name, c] as const))("%s", (_name, c) => {
+  it.each(coreCases.map((c) => [c.name, c] as const))("%s", (_name, c) => {
     const params = { ...c.params };
+    if (c.expected_error !== undefined) {
+      expect(c.expected_error).toBe("degenerate");
+      expect(() => ratePeriod(c.input.rating, c.input.rd, c.input.volatility, c.input.idle_periods,
+        c.input.opponents, params)).toThrow(DegeneratePeriodError);
+      return;
+    }
     const out = ratePeriod(c.input.rating, c.input.rd, c.input.volatility, c.input.idle_periods, c.input.opponents,
       params);
     const before = mismatches.length;
@@ -71,9 +100,21 @@ describe("core cases", () => {
   });
 });
 
+describe("feature cases", () => {
+  it.each(featureCases.map((c) => [c.name, c] as const))("%s", (_name, c) => {
+    if (c.expected_error !== undefined) {
+      expect(() => promptFeatures(c.rarity, c.gate_results)).toThrow();
+      return;
+    }
+    const before = mismatches.length;
+    compare(promptFeatures(c.rarity, c.gate_results), c.expected, c.name);
+    expect(mismatches.slice(before)).toEqual([]);
+  });
+});
+
 describe("Glickman's worked example", () => {
   it("matches the published values at the paper's precision", () => {
-    const c = golden.core.find((x) => x.name === "glickman_example");
+    const c = coreCases.find((x) => x.name === "glickman_example");
     expect(c).toBeDefined();
     const i = GLICKMAN.inputs;
     const out = ratePeriod(i.rating, i.rd, i.volatility, 0, i.opponents, c!.params);

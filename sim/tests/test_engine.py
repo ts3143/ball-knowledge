@@ -1,3 +1,4 @@
+import math
 import random
 from datetime import date, timedelta
 
@@ -6,7 +7,7 @@ import pytest
 from rating.core import Opponent, idle_rd, rate_period
 from rating.engine import replay
 from rating.golden import golden_params
-from rating.seed import seed_rating
+from rating.seed import prompt_features, seed_rating
 from rating.types import CLUB, COMPETITION, SPORT, Game, Prompt
 
 D0 = date(2030, 1, 1)
@@ -179,3 +180,70 @@ def test_replay_is_deterministic_and_covers_every_touched_scope():
     assert a == b
     assert set(a.scopes) == {(1, SPORT_SCOPE), (1, COMP), (1, (CLUB, 50)), (1, (CLUB, 51))}
     assert a.scopes[(1, (CLUB, 50))].games == 1
+
+
+def test_a_clubs_parent_is_per_user_so_other_users_do_not_change_it():
+    ps = (prompts(range(1, 8), 2, {1: (31,)}) + prompts(range(8, 15), 1, {8: (31,)})
+          + prompts(range(15, 22), 1) + prompts(range(22, 29), 2))
+    user1 = dive(0, 1, 1, range(15, 22), [100] * 7) + dive(0, 1, 2, range(22, 29), [0] * 7) \
+        + dive(1, 1, 1, range(1, 8), [50] * 7)
+    user2 = dive(1, 2, 1, range(8, 15), [25] * 7)
+    alone, both = replay(ps, user1, P), replay(ps, user1 + user2, P)
+    assert alone.scopes[(1, (CLUB, 31))] == both.scopes[(1, (CLUB, 31))]
+    assert [h for h in alone.history if h.user_id == 1] == [h for h in both.history if h.user_id == 1]
+    # user 1's club 31 hangs under competition 2 (its own first prompt), user 2's under competition 1
+    comp2 = row(both, 1, 1, (COMPETITION, 2))
+    assert row(both, 1, 1, (CLUB, 31)).rating_before == comp2.rating_before
+    comp1 = row(both, 2, 1, COMP)
+    assert row(both, 2, 1, (CLUB, 31)).rating_before == comp1.rating_before
+
+
+def test_a_club_parent_tie_on_a_date_goes_to_the_lowest_competition_id():
+    ps = (prompts(range(1, 8), 2, {1: (31,)}) + prompts(range(8, 15), 1, {8: (31,)}) + prompts(range(15, 22), 1)
+          + prompts(range(22, 29), 2))
+    games = (dive(0, 1, 1, range(15, 22), [100] * 7) + dive(0, 1, 2, range(22, 29), [0] * 7)  # distinct states
+             + dive(1, 1, 1, range(1, 8), [50] * 7) + dive(1, 1, 2, range(8, 15), [50] * 7))
+    r = replay(ps, games, P)
+    club = row(r, 1, 1, (CLUB, 31), attempt=1)
+    comp1, comp2 = row(r, 1, 1, COMP, attempt=2), row(r, 1, 1, (COMPETITION, 2), attempt=1)
+    assert comp1.rating_before != comp2.rating_before
+    assert club.rating_before == comp1.rating_before
+
+
+@pytest.mark.parametrize("games, message", [
+    (dive(0, 1, 1, [1, 2], [10, 20]) + dive(0, 1, 2, [1], [50]), "duplicate rated game"),
+    (dive(0, 1, 1, [1], [101]), "outside 0..100"),
+    (dive(0, 1, 1, [1], [-5]), "outside 0..100"),
+    (dive(0, 1, 1, [1], [float("nan")]), "finite"),
+    ([Game(1, D0, 1, 1, 10.0), Game(1, "2030-01-01", 1, 2, 10)], "datetime.date"),
+    ([Game(1, __import__("datetime").datetime(2030, 1, 1), 1, 1, 10)], "datetime.date"),
+])
+def test_bad_game_rows_are_rejected(games, message):
+    with pytest.raises(ValueError, match=message):
+        replay(prompts([1, 2]), games, P)
+
+
+def test_archive_duplicates_and_unanswered_points_are_not_checked():
+    games = dive(0, 1, 1, [1], [10]) + dive(0, 1, 1, [1], [10], rated=False) + [Game(1, day(0), 1, 2, 999, unanswered=True)]
+    assert replay(prompts([1, 2]), games, P).scopes[(1, COMP)].games == 2
+
+
+def test_bad_prompts_and_params_are_rejected():
+    with pytest.raises(ValueError, match="club twice"):
+        replay(prompts([1], clubs={1: (5, 5)}), dive(0, 1, 1, [1], [10]), P)
+    with pytest.raises(ValueError, match="finite"):
+        replay([Prompt(1, 1, (), {"log_recall_mass": float("inf")})], dive(0, 1, 1, [1], [10]), P)
+    with pytest.raises(ValueError, match="params.tau"):
+        replay(prompts([1]), dive(0, 1, 1, [1], [10]), golden_params(tau=float("nan")))
+
+
+def test_prompt_features_take_log_n_eff_and_reject_bad_rows():
+    row_ = {"rarity": {"log_recall_mass": 11.25}, "gate_results": {"tiers": {"n_eff": 7.5, "top_share": 0.3}}}
+    assert prompt_features(row_["rarity"], row_["gate_results"]) == {"log_recall_mass": 11.25, "ln_n_eff": math.log(7.5)}
+    for rarity, gate in [({"log_recall_mass": 1.0}, {"tiers": {"n_eff": 0}}), ({"log_recall_mass": 1.0}, {"tiers": {}}),
+                         ({}, {"tiers": {"n_eff": 3}}), ({"log_recall_mass": None}, {"tiers": {"n_eff": 3}}),
+                         ({"log_recall_mass": 1.0}, {"tiers": {"n_eff": "7"}}), ({"log_recall_mass": 1.0}, {})]:
+        with pytest.raises(ValueError):
+            prompt_features(rarity, gate)
+    with pytest.raises(ValueError, match="finite"):
+        seed_rating({"log_recall_mass": float("nan")}, P.seed)

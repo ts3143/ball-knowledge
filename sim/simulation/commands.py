@@ -12,10 +12,10 @@ from rating.params import load_tunables, parse_override
 
 from .experiment import Task, aggregate, run_tasks
 from .metrics import REPORT_DATES
-from .play import FEATURES, prompt_features
+from .play import prompt_features
 from .report_run import write_outputs
 from .runner import git_commit
-from .seedfit import SeedData, propose, tunables_block, with_seed
+from .seedfit import FEATURES, SeedData, propose, tunables_block, with_seed
 from .snapshot import check_retiering, load_snapshot
 from .world import WORLDS, load_scenarios, load_section, load_world_config
 

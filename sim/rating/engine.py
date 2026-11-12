@@ -1,5 +1,8 @@
 """Replay of rated games into ratings: one rating period per (user, scope, dive date), and one per prompt.
 
+A club's parent competition is chosen per user: the competition of the user's own first rated prompt that tags the
+club (the lowest competition id on a date tie), so one user's games never change another user's ratings.
+
 Dates run in ascending order. Within a date every user is independent, and prompts are settled after all users
 from the player states at the start of the date, so a prompt's rating is frozen for the whole date. After each
 attempt a user's period for the date is recomputed from the state before the date using all the date's games so
@@ -26,18 +29,20 @@ from .types import (
     State,
     scope_key,
 )
+from .validate import check_games, check_params, check_prompts
 
 
-def club_parents(prompts: dict[int, Prompt], first_date: dict[int, date]) -> dict[int, int]:
-    """A club's parent competition is that of the prompt that first touched it; the lowest id on a date tie."""
-    best: dict[int, tuple[date, int]] = {}
-    for pid in sorted(first_date):
-        p = prompts[pid]
+def club_parents(prompts: dict[int, Prompt], games: list[Game]) -> dict[tuple[int, int], int]:
+    """(user, club) -> parent competition: that of the user's first rated prompt that tags the club, the lowest
+    competition id on a date tie."""
+    best: dict[tuple[int, int], tuple[date, int]] = {}
+    for g in games:
+        p = prompts[g.prompt_id]
         for club in p.club_ids:
-            candidate = (first_date[pid], p.competition_id)
-            if club not in best or candidate < best[club]:
-                best[club] = candidate
-    return {club: c for club, (_, c) in best.items()}
+            candidate = (g.date, p.competition_id)
+            if (g.user_id, club) not in best or candidate < best[(g.user_id, club)]:
+                best[(g.user_id, club)] = candidate
+    return {key: c for key, (_, c) in best.items()}
 
 
 def prompt_scopes(p: Prompt) -> list[Scope]:
@@ -50,27 +55,27 @@ def replay(prompts: list[Prompt], games: list[Game], params: Params) -> ReplayRe
         if p.id in prompt_by_id:
             raise ValueError(f"duplicate prompt id {p.id}")
         prompt_by_id[p.id] = p
+    check_params(params)
+    check_prompts(prompts)
     rated = [g for g in games if g.rated]  # archive plays never enter the engine
     for g in rated:
         if g.prompt_id not in prompt_by_id:
             raise ValueError(f"game for unknown prompt {g.prompt_id}")
+    check_games(rated, params.points_scale)
 
     by_date: dict[date, list[Game]] = defaultdict(list)
-    first_date: dict[int, date] = {}
     for g in rated:
         by_date[g.date].append(g)
-        if g.prompt_id not in first_date or g.date < first_date[g.prompt_id]:
-            first_date[g.prompt_id] = g.date
-    parent_club = club_parents(prompt_by_id, first_date)
+    parent_club = club_parents(prompt_by_id, rated)
     sport_of: dict[int, str] = {}  # competition -> sport
     for pid in sorted(prompt_by_id):
         p = prompt_by_id[pid]
         if sport_of.setdefault(p.competition_id, p.sport) != p.sport:
             raise ValueError(f"competition {p.competition_id} appears in two sports")
 
-    def parent_of(scope: Scope) -> Scope | None:
+    def parent_of(uid: int, scope: Scope) -> Scope | None:
         if scope[0] == CLUB:
-            return COMPETITION, parent_club[scope[1]]
+            return COMPETITION, parent_club[(uid, scope[1])]
         if scope[0] == COMPETITION:
             return SPORT, sport_of[scope[1]]
         return None
@@ -119,7 +124,7 @@ def _play_user(uid: int, day: date, games: list[Game], prompt_by_id: dict[int, P
             idle = idle_periods(st.last_period, day)
             result = State(st.rating, idle_rd(st.rd, st.volatility, idle, params.initial_rd), st.volatility,
                            st.games, st.last_period)
-        elif (parent := parent_of(scope)) is not None:
+        elif (parent := parent_of(uid, scope)) is not None:
             p = start(parent)  # the parent's state at the start of the date, never its updated one
             result = State(p.rating, max(params.child_scope_initial_rd, p.rd), params.initial_volatility, 0, None)
         else:

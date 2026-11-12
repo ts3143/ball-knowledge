@@ -1,18 +1,19 @@
 /** What a player sees: RD today (computed, never stored), the uncertain marker, club visibility. */
 
 import { idleRd } from "./core";
+import { checkDate } from "./validate";
 import type { Params, State } from "./types";
 
 const MS_PER_DAY = 86_400_000;
 
 /** Whole days from ISO date `a` to ISO date `b`. */
 export function daysBetween(a: string, b: string): number {
-  return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / MS_PER_DAY);
+  return Math.round((Date.parse(`${checkDate(b)}T00:00:00Z`) - Date.parse(`${checkDate(a)}T00:00:00Z`)) / MS_PER_DAY);
 }
 
 /** ISO date `days` after ISO date `d`. */
 export function addDays(d: string, days: number): string {
-  return new Date(Date.parse(`${d}T00:00:00Z`) + days * MS_PER_DAY).toISOString().slice(0, 10);
+  return new Date(Date.parse(`${checkDate(d)}T00:00:00Z`) + days * MS_PER_DAY).toISOString().slice(0, 10);
 }
 
 /** Dive dates skipped between lastPeriod and `today`: none when today is the next day. */

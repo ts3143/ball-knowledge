@@ -19,11 +19,15 @@ def test_the_golden_file_records_the_engine_version_and_every_case_kind():
     assert len(doc["core"]) >= 50
     assert {c["name"] for c in doc["replay"]} == {
         "multi_scope", "child_scope_start", "idle_gap", "two_competitions_one_date", "low_threshold_lock",
-        "abandoned_attempt"}
+        "abandoned_attempt", "two_users_shared_club", "two_feature_seed_offsets", "calendar_edges"}
+    assert {c["name"] for c in doc["features"]} >= {"typical", "n_eff_zero"}
+    assert any("expected_error" in c for c in doc["core"])
 
 
 def test_core_cases_reproduce_from_their_recorded_inputs():
     for c in json.loads(GOLDEN_PATH.read_text())["core"]:
+        if "expected_error" in c:
+            continue
         params = Params.from_dict({**json.loads(json.dumps(replay_scenarios()[0][1].to_dict())), **c["params"]})
         out = rate_period(c["input"]["rating"], c["input"]["rd"], c["input"]["volatility"], c["input"]["idle_periods"],
                           [Opponent(**o) for o in c["input"]["opponents"]], params)

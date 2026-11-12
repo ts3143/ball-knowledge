@@ -1,5 +1,5 @@
 {
- "engine_version": "bk-glicko-1",
+ "engine_version": "bk-glicko-2",
  "relative_tolerance": 1e-06,
  "core": [
   {
@@ -202,6 +202,52 @@
     "rd": 209.75511085669262,
     "volatility": 0.05999866399356784
    }
+  },
+  {
+   "name": "saturated_expected_one",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1500.0,
+    "rd": 50.0,
+    "volatility": 0.06,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": -6000.0,
+      "rd": 30.0,
+      "score": 1.0
+     }
+    ]
+   },
+   "expected_error": "degenerate"
+  },
+  {
+   "name": "saturated_exp_overflow",
+   "params": {
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "game_weight": 1.0,
+    "initial_rd": 350.0
+   },
+   "input": {
+    "rating": 1500.0,
+    "rd": 50.0,
+    "volatility": 0.06,
+    "idle_periods": 0,
+    "opponents": [
+     {
+      "rating": 200000.0,
+      "rd": 30.0,
+      "score": 0.0
+     }
+    ]
+   },
+   "expected_error": "degenerate"
   },
   {
    "name": "random_00",
@@ -2747,6 +2793,131 @@
     "rd": 140.34895226901943,
     "volatility": 0.02090011171931764
    }
+  }
+ ],
+ "features": [
+  {
+   "name": "typical",
+   "rarity": {
+    "log_recall_mass": 11.25,
+    "version": "x"
+   },
+   "gate_results": {
+    "tiers": {
+     "n_eff": 7.5,
+     "top_share": 0.31
+    }
+   },
+   "expected": {
+    "log_recall_mass": 11.25,
+    "ln_n_eff": 2.0149030205422647
+   }
+  },
+  {
+   "name": "n_eff_one",
+   "rarity": {
+    "log_recall_mass": -3.5
+   },
+   "gate_results": {
+    "tiers": {
+     "n_eff": 1
+    }
+   },
+   "expected": {
+    "log_recall_mass": -3.5,
+    "ln_n_eff": 0.0
+   }
+  },
+  {
+   "name": "n_eff_large",
+   "rarity": {
+    "log_recall_mass": 0
+   },
+   "gate_results": {
+    "tiers": {
+     "n_eff": 110.25
+    }
+   },
+   "expected": {
+    "log_recall_mass": 0.0,
+    "ln_n_eff": 4.702750514326955
+   }
+  },
+  {
+   "name": "n_eff_zero",
+   "rarity": {
+    "log_recall_mass": 1.0
+   },
+   "gate_results": {
+    "tiers": {
+     "n_eff": 0
+    }
+   },
+   "expected_error": "invalid"
+  },
+  {
+   "name": "n_eff_negative",
+   "rarity": {
+    "log_recall_mass": 1.0
+   },
+   "gate_results": {
+    "tiers": {
+     "n_eff": -2.0
+    }
+   },
+   "expected_error": "invalid"
+  },
+  {
+   "name": "n_eff_missing",
+   "rarity": {
+    "log_recall_mass": 1.0
+   },
+   "gate_results": {
+    "tiers": {}
+   },
+   "expected_error": "invalid"
+  },
+  {
+   "name": "tiers_missing",
+   "rarity": {
+    "log_recall_mass": 1.0
+   },
+   "gate_results": {},
+   "expected_error": "invalid"
+  },
+  {
+   "name": "recall_missing",
+   "rarity": {},
+   "gate_results": {
+    "tiers": {
+     "n_eff": 4.0
+    }
+   },
+   "expected_error": "invalid"
+  },
+  {
+   "name": "recall_null",
+   "rarity": {
+    "log_recall_mass": null
+   },
+   "gate_results": {
+    "tiers": {
+     "n_eff": 4.0
+    }
+   },
+   "expected_error": "invalid"
+  },
+  {
+   "name": "n_eff_string",
+   "rarity": {
+    "log_recall_mass": 1.0
+   },
+   "gate_results": {
+    "tiers": {
+     "n_eff": "7.5"
+    }
+   },
+   "expected_error": "invalid"
   }
  ],
  "replay": [
@@ -8897,6 +9068,4199 @@
       "games": 1,
       "locked": false,
       "last_period": "2030-01-02",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     }
+    ]
+   }
+  },
+  {
+   "name": "two_users_shared_club",
+   "params": {
+    "initial_rating": 1500.0,
+    "initial_rd": 350.0,
+    "initial_volatility": 0.06,
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "child_scope_initial_rd": 250.0,
+    "game_weight": 1.0,
+    "uncertain_rd_threshold": 110.0,
+    "club_rating_min_prompts": 20,
+    "prompt_lock_answers": 200,
+    "points_scale": 100.0,
+    "seed": {
+     "intercept": 1500.0,
+     "rd": 350.0,
+     "coefficients": {
+      "log_recall_mass": 40.0
+     }
+    }
+   },
+   "prompts": [
+    {
+     "id": 1,
+     "competition_id": 1,
+     "club_ids": [
+      41
+     ],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 2,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 3,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 4,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 5,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 6,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 7,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 8,
+     "competition_id": 2,
+     "club_ids": [
+      41
+     ],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 9,
+     "competition_id": 2,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 10,
+     "competition_id": 2,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 11,
+     "competition_id": 2,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 12,
+     "competition_id": 2,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 13,
+     "competition_id": 2,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 14,
+     "competition_id": 2,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 15,
+     "competition_id": 1,
+     "club_ids": [
+      41
+     ],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 16,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 17,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 18,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 19,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 20,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 21,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 22,
+     "competition_id": 2,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 23,
+     "competition_id": 2,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 24,
+     "competition_id": 2,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 25,
+     "competition_id": 2,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 26,
+     "competition_id": 2,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 27,
+     "competition_id": 2,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 28,
+     "competition_id": 2,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    }
+   ],
+   "games": [
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 22,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 23,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 24,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 25,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 26,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 27,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 28,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 22,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 23,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 24,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 25,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 26,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 27,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 28,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 1,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 2,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 3,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 4,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 5,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 6,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 7,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 8,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 9,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 10,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 11,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 12,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 13,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 14,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 15,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 16,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 17,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 18,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 19,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 20,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-03",
+     "attempt": 1,
+     "prompt_id": 21,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    }
+   ],
+   "expected": {
+    "scopes": [
+     {
+      "user_id": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating": 1247.3791411224183,
+      "rd": 110.5090326207732,
+      "volatility": 0.05998748918162925,
+      "games": 21,
+      "last_period": "2030-01-03"
+     },
+     {
+      "user_id": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating": 1235.0866839577075,
+      "rd": 124.05067251833295,
+      "volatility": 0.05999096766189903,
+      "games": 14,
+      "last_period": "2030-01-03"
+     },
+     {
+      "user_id": 1,
+      "scope_type": "competition",
+      "scope_id": 2,
+      "rating": 1294.6735590296928,
+      "rd": 173.94190292311535,
+      "volatility": 0.059998640454381476,
+      "games": 7,
+      "last_period": "2030-01-01"
+     },
+     {
+      "user_id": 1,
+      "scope_type": "club",
+      "scope_id": 41,
+      "rating": 1424.2114365845296,
+      "rd": 208.47650910297622,
+      "volatility": 0.059998637352451326,
+      "games": 2,
+      "last_period": "2030-01-03"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating": 1237.3384593138549,
+      "rd": 133.76794045080476,
+      "volatility": 0.05999427976446976,
+      "games": 14,
+      "last_period": "2030-01-02"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "competition",
+      "scope_id": 2,
+      "rating": 1237.3384593138549,
+      "rd": 133.76794045080476,
+      "volatility": 0.05999427976446976,
+      "games": 14,
+      "last_period": "2030-01-02"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "club",
+      "scope_id": 41,
+      "rating": 1259.4724585650708,
+      "rd": 228.9212718421203,
+      "volatility": 0.05999911036454602,
+      "games": 1,
+      "last_period": "2030-01-02"
+     }
+    ],
+    "history": [
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1294.6735590296928,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.059998640454381476,
+      "games": 7,
+      "score_sum": 2.4
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 2,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1294.6735590296928,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.059998640454381476,
+      "games": 7,
+      "score_sum": 2.4
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1218.9294876057038,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.05999963926704257,
+      "games": 7,
+      "score_sum": 1.75
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 2,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1218.9294876057038,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.05999963926704257,
+      "games": 7,
+      "score_sum": 1.75
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1294.6735590296928,
+      "rd_before": 173.94190292311535,
+      "volatility_before": 0.059998640454381476,
+      "rating_after": 1281.0866951627356,
+      "rd_after": 131.62019664643748,
+      "volatility_after": 0.0599929613304044,
+      "games": 7,
+      "score_sum": 2.6
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1294.6735590296928,
+      "rd_before": 250.0,
+      "volatility_before": 0.06,
+      "rating_after": 1275.4333053380526,
+      "rd_after": 156.62760975992472,
+      "volatility_after": 0.05999608160397921,
+      "games": 7,
+      "score_sum": 2.6
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 41,
+      "rating_before": 1294.6735590296928,
+      "rd_before": 250.0,
+      "volatility_before": 0.06,
+      "rating_after": 1371.364148270055,
+      "rd_after": 227.01043586538594,
+      "volatility_after": 0.059999460238290565,
+      "games": 1,
+      "score_sum": 0.75
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1218.9294876057038,
+      "rd_before": 173.94190292311535,
+      "volatility_before": 0.05999963926704257,
+      "rating_after": 1237.3384593138549,
+      "rd_after": 133.76794045080476,
+      "volatility_after": 0.05999427976446976,
+      "games": 7,
+      "score_sum": 2.6
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 2,
+      "rating_before": 1218.9294876057038,
+      "rd_before": 173.94190292311535,
+      "volatility_before": 0.05999963926704257,
+      "rating_after": 1237.3384593138549,
+      "rd_after": 133.76794045080476,
+      "volatility_after": 0.05999427976446976,
+      "games": 7,
+      "score_sum": 2.6
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 41,
+      "rating_before": 1218.9294876057038,
+      "rd_before": 250.0,
+      "volatility_before": 0.06,
+      "rating_after": 1259.4724585650708,
+      "rd_after": 228.9212718421203,
+      "volatility_after": 0.05999911036454602,
+      "games": 1,
+      "score_sum": 0.5
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1281.0866951627356,
+      "rd_before": 131.62019664643748,
+      "volatility_before": 0.0599929613304044,
+      "rating_after": 1247.3791411224183,
+      "rd_after": 110.5090326207732,
+      "volatility_after": 0.05998748918162925,
+      "games": 7,
+      "score_sum": 2.0
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1275.4333053380526,
+      "rd_before": 156.62760975992472,
+      "volatility_before": 0.05999608160397921,
+      "rating_after": 1235.0866839577075,
+      "rd_after": 124.05067251833295,
+      "volatility_after": 0.05999096766189903,
+      "games": 7,
+      "score_sum": 2.0
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-03",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 41,
+      "rating_before": 1371.364148270055,
+      "rd_before": 227.01043586538594,
+      "volatility_before": 0.059999460238290565,
+      "rating_after": 1424.2114365845296,
+      "rd_after": 208.47650910297622,
+      "volatility_after": 0.059998637352451326,
+      "games": 1,
+      "score_sum": 0.75
+     }
+    ],
+    "prompts": [
+     {
+      "prompt_id": 1,
+      "rating": 1295.4861143952244,
+      "rd": 280.1872156234194,
+      "volatility": 0.05999937260135188,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 2,
+      "rating": 1371.7405922214089,
+      "rd": 278.836018661011,
+      "volatility": 0.05999884870648228,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 3,
+      "rating": 1272.5613398210685,
+      "rd": 277.6619491563486,
+      "volatility": 0.05999920839103468,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 4,
+      "rating": 1433.4969842747917,
+      "rd": 276.67555077664434,
+      "volatility": 0.05999883060471924,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 5,
+      "rating": 1506.5179246887537,
+      "rd": 275.8857635266808,
+      "volatility": 0.059999323512283105,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 6,
+      "rating": 1408.0392414534517,
+      "rd": 275.29979683498516,
+      "volatility": 0.05999885794981513,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 7,
+      "rating": 1539.3710103059725,
+      "rd": 281.7035435988758,
+      "volatility": 0.05999900004151946,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 8,
+      "rating": 1341.1145270902775,
+      "rd": 278.5495022433721,
+      "volatility": 0.05999904646882169,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 9,
+      "rating": 1522.256284223974,
+      "rd": 276.01716753525756,
+      "volatility": 0.059999026758397855,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 10,
+      "rating": 1130.7473536888622,
+      "rd": 273.6417887652007,
+      "volatility": 0.06000067448317031,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 11,
+      "rating": 1215.6952858159223,
+      "rd": 271.446117615732,
+      "volatility": 0.05999940755009561,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 12,
+      "rating": 1443.9331364470938,
+      "rd": 269.4515712652294,
+      "volatility": 0.059998837043495026,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 13,
+      "rating": 1412.950198617071,
+      "rd": 267.67789333308394,
+      "volatility": 0.05999876445723665,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 14,
+      "rating": 1511.3465079536534,
+      "rd": 281.2150724189748,
+      "volatility": 0.05999889319677566,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 15,
+      "rating": 1271.1106680407495,
+      "rd": 269.7684092264839,
+      "volatility": 0.0599994243480164,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-03",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 16,
+      "rating": 1446.5315919201519,
+      "rd": 267.6158143260968,
+      "volatility": 0.05999863829152254,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-03",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 17,
+      "rating": 1525.4568759152735,
+      "rd": 265.69265166197545,
+      "volatility": 0.059999018325175714,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-03",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 18,
+      "rating": 1422.5490371155897,
+      "rd": 264.01858861979304,
+      "volatility": 0.05999861642949493,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-03",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 19,
+      "rating": 1321.8606228861959,
+      "rd": 262.61089968477603,
+      "volatility": 0.05999858666883327,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-03",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 20,
+      "rating": 1451.9215204401967,
+      "rd": 261.4842093723309,
+      "volatility": 0.05999887097561394,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-03",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 21,
+      "rating": 1509.0922470205849,
+      "rd": 272.1286776784556,
+      "volatility": 0.0599987506500126,
+      "games": 1,
+      "locked": false,
+      "last_period": "2030-01-03",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 22,
+      "rating": 1555.6863490404,
+      "rd": 254.1475159562013,
+      "volatility": 0.05999879158641063,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 23,
+      "rating": 1708.1940067707117,
+      "rd": 254.76651654233618,
+      "volatility": 0.0600006900479747,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 24,
+      "rating": 1485.579698665485,
+      "rd": 255.55652014259954,
+      "volatility": 0.05999864671393955,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 25,
+      "rating": 1564.2540421807043,
+      "rd": 256.5131877667271,
+      "volatility": 0.05999938221509038,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 26,
+      "rating": 1491.2071859751898,
+      "rd": 257.6312744363216,
+      "volatility": 0.05999894389730091,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 27,
+      "rating": 1442.9387354595428,
+      "rd": 258.90466507925714,
+      "volatility": 0.0599987822052561,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 28,
+      "rating": 1603.008342015959,
+      "rd": 253.7029224946884,
+      "volatility": 0.05999897717381895,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     }
+    ]
+   }
+  },
+  {
+   "name": "two_feature_seed_offsets",
+   "params": {
+    "initial_rating": 1500.0,
+    "initial_rd": 350.0,
+    "initial_volatility": 0.06,
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "child_scope_initial_rd": 250.0,
+    "game_weight": 1.0,
+    "uncertain_rd_threshold": 110.0,
+    "club_rating_min_prompts": 20,
+    "prompt_lock_answers": 200,
+    "points_scale": 100.0,
+    "seed": {
+     "intercept": 2476.79,
+     "rd": 60.0,
+     "coefficients": {
+      "log_recall_mass": -71.0242,
+      "ln_n_eff": 36.3276
+     }
+    }
+   },
+   "prompts": [
+    {
+     "id": 1,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": 10.25,
+      "ln_n_eff": 1.8
+     },
+     "template_offset": -30.0,
+     "sport": "football"
+    },
+    {
+     "id": 2,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": 11.0,
+      "ln_n_eff": 2.6
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 3,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": 11.75,
+      "ln_n_eff": 3.4000000000000004
+     },
+     "template_offset": 12.5,
+     "sport": "football"
+    },
+    {
+     "id": 4,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": 12.5,
+      "ln_n_eff": 4.2
+     },
+     "template_offset": -30.0,
+     "sport": "football"
+    },
+    {
+     "id": 5,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": 13.25,
+      "ln_n_eff": 1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 6,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": 14.0,
+      "ln_n_eff": 1.8
+     },
+     "template_offset": 12.5,
+     "sport": "football"
+    },
+    {
+     "id": 7,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": 9.5,
+      "ln_n_eff": 2.6
+     },
+     "template_offset": -30.0,
+     "sport": "football"
+    },
+    {
+     "id": 8,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": 10.25,
+      "ln_n_eff": 3.4000000000000004
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 9,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": 11.0,
+      "ln_n_eff": 4.2
+     },
+     "template_offset": 12.5,
+     "sport": "football"
+    },
+    {
+     "id": 10,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": 11.75,
+      "ln_n_eff": 1.0
+     },
+     "template_offset": -30.0,
+     "sport": "football"
+    },
+    {
+     "id": 11,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": 12.5,
+      "ln_n_eff": 1.8
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 12,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": 13.25,
+      "ln_n_eff": 2.6
+     },
+     "template_offset": 12.5,
+     "sport": "football"
+    },
+    {
+     "id": 13,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": 14.0,
+      "ln_n_eff": 3.4000000000000004
+     },
+     "template_offset": -30.0,
+     "sport": "football"
+    },
+    {
+     "id": 14,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": 9.5,
+      "ln_n_eff": 4.2
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    }
+   ],
+   "games": [
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 1,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 2,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 3,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 4,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 5,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 6,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 7,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 1,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 2,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 3,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 4,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 5,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 6,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-01",
+     "attempt": 1,
+     "prompt_id": 7,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 8,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 9,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 10,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 11,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 12,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 13,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 14,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 8,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 9,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 10,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 11,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 12,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 13,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2030-01-02",
+     "attempt": 1,
+     "prompt_id": 14,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    }
+   ],
+   "expected": {
+    "scopes": [
+     {
+      "user_id": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating": 1569.8817279200046,
+      "rd": 108.07657758142902,
+      "volatility": 0.059989298848910265,
+      "games": 14,
+      "last_period": "2030-01-02"
+     },
+     {
+      "user_id": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating": 1569.8817279200046,
+      "rd": 108.07657758142902,
+      "volatility": 0.059989298848910265,
+      "games": 14,
+      "last_period": "2030-01-02"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating": 1546.789806299851,
+      "rd": 107.14253641895652,
+      "volatility": 0.059988676894518325,
+      "games": 14,
+      "last_period": "2030-01-02"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating": 1546.789806299851,
+      "rd": 107.14253641895652,
+      "volatility": 0.059988676894518325,
+      "games": 14,
+      "last_period": "2030-01-02"
+     }
+    ],
+    "history": [
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1541.9362296983415,
+      "rd_after": 147.7246981610537,
+      "volatility_after": 0.05999731664675528,
+      "games": 7,
+      "score_sum": 2.0
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1541.9362296983415,
+      "rd_after": 147.7246981610537,
+      "volatility_after": 0.05999731664675528,
+      "games": 7,
+      "score_sum": 2.0
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1560.446751488598,
+      "rd_after": 147.7246981610537,
+      "volatility_after": 0.0599973680137375,
+      "games": 7,
+      "score_sum": 2.1500000000000004
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-01",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1560.446751488598,
+      "rd_after": 147.7246981610537,
+      "volatility_after": 0.0599973680137375,
+      "games": 7,
+      "score_sum": 2.1500000000000004
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1541.9362296983415,
+      "rd_before": 147.7246981610537,
+      "volatility_before": 0.05999731664675528,
+      "rating_after": 1569.8817279200046,
+      "rd_after": 108.07657758142902,
+      "volatility_after": 0.059989298848910265,
+      "games": 7,
+      "score_sum": 2.3
+     },
+     {
+      "user_id": 1,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1541.9362296983415,
+      "rd_before": 147.7246981610537,
+      "volatility_before": 0.05999731664675528,
+      "rating_after": 1569.8817279200046,
+      "rd_after": 108.07657758142902,
+      "volatility_after": 0.059989298848910265,
+      "games": 7,
+      "score_sum": 2.3
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1560.446751488598,
+      "rd_before": 147.7246981610537,
+      "volatility_before": 0.0599973680137375,
+      "rating_after": 1546.789806299851,
+      "rd_after": 107.14253641895652,
+      "volatility_after": 0.059988676894518325,
+      "games": 7,
+      "score_sum": 1.8
+     },
+     {
+      "user_id": 2,
+      "date": "2030-01-02",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1560.446751488598,
+      "rd_before": 147.7246981610537,
+      "volatility_before": 0.0599973680137375,
+      "rating_after": 1546.789806299851,
+      "rd_after": 107.14253641895652,
+      "volatility_after": 0.059988676894518325,
+      "games": 7,
+      "score_sum": 1.8
+     }
+    ],
+    "prompts": [
+     {
+      "prompt_id": 1,
+      "rating": 1784.2031390953875,
+      "rd": 60.27868185799622,
+      "volatility": 0.05999777529336234,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1784.1816300000003,
+      "seed_rd": 60.0
+     },
+     {
+      "prompt_id": 2,
+      "rating": 1786.380961589843,
+      "rd": 60.2855033504291,
+      "volatility": 0.059998182274151664,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1789.9755599999999,
+      "seed_rd": 60.0
+     },
+     {
+      "prompt_id": 3,
+      "rating": 1776.3127068349263,
+      "rd": 60.27177801426801,
+      "volatility": 0.05999786402253798,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1778.2694900000001,
+      "seed_rd": 60.0
+     },
+     {
+      "prompt_id": 4,
+      "rating": 1718.0356544736746,
+      "rd": 60.19825057807464,
+      "volatility": 0.05999872884126454,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1711.5634200000004,
+      "seed_rd": 60.0
+     },
+     {
+      "prompt_id": 5,
+      "rating": 1582.6471211397584,
+      "rd": 60.09324115242988,
+      "volatility": 0.060000441925878674,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1572.0469500000002,
+      "seed_rd": 60.0
+     },
+     {
+      "prompt_id": 6,
+      "rating": 1551.7790307373741,
+      "rd": 60.088682619694275,
+      "volatility": 0.05999926890378011,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1560.3408800000002,
+      "seed_rd": 60.0
+     },
+     {
+      "prompt_id": 7,
+      "rating": 1864.994952054856,
+      "rd": 60.37741775057864,
+      "volatility": 0.059998196208423595,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-01",
+      "seed_rating": 1866.51186,
+      "seed_rd": 60.0
+     },
+     {
+      "prompt_id": 8,
+      "rating": 1866.9610202004797,
+      "rd": 60.09844864160479,
+      "volatility": 0.05999797874072664,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1872.3057900000001,
+      "seed_rd": 60.0
+     },
+     {
+      "prompt_id": 9,
+      "rating": 1854.6322290659546,
+      "rd": 60.065486462368916,
+      "volatility": 0.059998070054644616,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1860.5997200000002,
+      "seed_rd": 60.0
+     },
+     {
+      "prompt_id": 10,
+      "rating": 1658.7652986553676,
+      "rd": 59.50913945463029,
+      "volatility": 0.05999811560578208,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1648.5832500000001,
+      "seed_rd": 60.0
+     },
+     {
+      "prompt_id": 11,
+      "rating": 1651.377436825157,
+      "rd": 59.51936724908875,
+      "volatility": 0.05999534820909542,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1654.3771800000004,
+      "seed_rd": 60.0
+     },
+     {
+      "prompt_id": 12,
+      "rating": 1644.8141635027096,
+      "rd": 59.499061001803135,
+      "volatility": 0.059995146204412535,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1642.67111,
+      "seed_rd": 60.0
+     },
+     {
+      "prompt_id": 13,
+      "rating": 1582.1417341965343,
+      "rd": 59.42700173137985,
+      "volatility": 0.05999588610043128,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1575.96504,
+      "seed_rd": 60.0
+     },
+     {
+      "prompt_id": 14,
+      "rating": 1949.286359740274,
+      "rd": 60.31183865485899,
+      "volatility": 0.05999874120712944,
+      "games": 2,
+      "locked": false,
+      "last_period": "2030-01-02",
+      "seed_rating": 1954.6360200000004,
+      "seed_rd": 60.0
+     }
+    ]
+   }
+  },
+  {
+   "name": "calendar_edges",
+   "params": {
+    "initial_rating": 1500.0,
+    "initial_rd": 350.0,
+    "initial_volatility": 0.06,
+    "tau": 0.5,
+    "volatility_epsilon": 1e-06,
+    "child_scope_initial_rd": 250.0,
+    "game_weight": 1.0,
+    "uncertain_rd_threshold": 110.0,
+    "club_rating_min_prompts": 20,
+    "prompt_lock_answers": 200,
+    "points_scale": 100.0,
+    "seed": {
+     "intercept": 1500.0,
+     "rd": 350.0,
+     "coefficients": {
+      "log_recall_mass": 40.0
+     }
+    }
+   },
+   "prompts": [
+    {
+     "id": 1,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 2,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 3,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 4,
+     "competition_id": 1,
+     "club_ids": [
+      51
+     ],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 5,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 6,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 7,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 8,
+     "competition_id": 1,
+     "club_ids": [
+      51
+     ],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 9,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 10,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 11,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 12,
+     "competition_id": 1,
+     "club_ids": [
+      51
+     ],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 13,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 14,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 15,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 16,
+     "competition_id": 1,
+     "club_ids": [
+      51
+     ],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 17,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 18,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 19,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 20,
+     "competition_id": 1,
+     "club_ids": [
+      51
+     ],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 21,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 22,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 23,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 24,
+     "competition_id": 1,
+     "club_ids": [
+      51
+     ],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 25,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 26,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 27,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 28,
+     "competition_id": 1,
+     "club_ids": [
+      51
+     ],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 29,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 30,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 31,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 32,
+     "competition_id": 1,
+     "club_ids": [
+      51
+     ],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 33,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 34,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 35,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 36,
+     "competition_id": 1,
+     "club_ids": [
+      51
+     ],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 37,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 38,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 39,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 40,
+     "competition_id": 1,
+     "club_ids": [
+      51
+     ],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 41,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 42,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 43,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 44,
+     "competition_id": 1,
+     "club_ids": [
+      51
+     ],
+     "features": {
+      "log_recall_mass": -2.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 45,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -2.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 46,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 47,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -3.5
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 48,
+     "competition_id": 1,
+     "club_ids": [
+      51
+     ],
+     "features": {
+      "log_recall_mass": -4.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    },
+    {
+     "id": 49,
+     "competition_id": 1,
+     "club_ids": [],
+     "features": {
+      "log_recall_mass": -1.0
+     },
+     "template_offset": 0.0,
+     "sport": "football"
+    }
+   ],
+   "games": [
+    {
+     "user_id": 1,
+     "date": "2031-12-30",
+     "attempt": 1,
+     "prompt_id": 1,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2031-12-30",
+     "attempt": 1,
+     "prompt_id": 2,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2031-12-30",
+     "attempt": 1,
+     "prompt_id": 3,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2031-12-30",
+     "attempt": 1,
+     "prompt_id": 4,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2031-12-30",
+     "attempt": 1,
+     "prompt_id": 5,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2031-12-30",
+     "attempt": 1,
+     "prompt_id": 6,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2031-12-30",
+     "attempt": 1,
+     "prompt_id": 7,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-01-02",
+     "attempt": 1,
+     "prompt_id": 8,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-01-02",
+     "attempt": 1,
+     "prompt_id": 9,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-01-02",
+     "attempt": 1,
+     "prompt_id": 10,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-01-02",
+     "attempt": 1,
+     "prompt_id": 11,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-01-02",
+     "attempt": 1,
+     "prompt_id": 12,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-01-02",
+     "attempt": 1,
+     "prompt_id": 13,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-01-02",
+     "attempt": 1,
+     "prompt_id": 14,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-01-31",
+     "attempt": 1,
+     "prompt_id": 15,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-01-31",
+     "attempt": 1,
+     "prompt_id": 16,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-01-31",
+     "attempt": 1,
+     "prompt_id": 17,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-01-31",
+     "attempt": 1,
+     "prompt_id": 18,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-01-31",
+     "attempt": 1,
+     "prompt_id": 19,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-01-31",
+     "attempt": 1,
+     "prompt_id": 20,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-01-31",
+     "attempt": 1,
+     "prompt_id": 21,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-02-28",
+     "attempt": 1,
+     "prompt_id": 22,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-02-28",
+     "attempt": 1,
+     "prompt_id": 23,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-02-28",
+     "attempt": 1,
+     "prompt_id": 24,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-02-28",
+     "attempt": 1,
+     "prompt_id": 25,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-02-28",
+     "attempt": 1,
+     "prompt_id": 26,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-02-28",
+     "attempt": 1,
+     "prompt_id": 27,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-02-28",
+     "attempt": 1,
+     "prompt_id": 28,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-03-01",
+     "attempt": 1,
+     "prompt_id": 29,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-03-01",
+     "attempt": 1,
+     "prompt_id": 30,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-03-01",
+     "attempt": 1,
+     "prompt_id": 31,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-03-01",
+     "attempt": 1,
+     "prompt_id": 32,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-03-01",
+     "attempt": 1,
+     "prompt_id": 33,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-03-01",
+     "attempt": 1,
+     "prompt_id": 34,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2032-03-01",
+     "attempt": 1,
+     "prompt_id": 35,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2033-02-28",
+     "attempt": 1,
+     "prompt_id": 36,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2033-02-28",
+     "attempt": 1,
+     "prompt_id": 37,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2033-02-28",
+     "attempt": 1,
+     "prompt_id": 38,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2033-02-28",
+     "attempt": 1,
+     "prompt_id": 39,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2033-02-28",
+     "attempt": 1,
+     "prompt_id": 40,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2033-02-28",
+     "attempt": 1,
+     "prompt_id": 41,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2033-02-28",
+     "attempt": 1,
+     "prompt_id": 42,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2033-03-01",
+     "attempt": 1,
+     "prompt_id": 43,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2033-03-01",
+     "attempt": 1,
+     "prompt_id": 44,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2033-03-01",
+     "attempt": 1,
+     "prompt_id": 45,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2033-03-01",
+     "attempt": 1,
+     "prompt_id": 46,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2033-03-01",
+     "attempt": 1,
+     "prompt_id": 47,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2033-03-01",
+     "attempt": 1,
+     "prompt_id": 48,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 1,
+     "date": "2033-03-01",
+     "attempt": 1,
+     "prompt_id": 49,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2031-12-30",
+     "attempt": 1,
+     "prompt_id": 1,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2031-12-30",
+     "attempt": 1,
+     "prompt_id": 2,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2031-12-30",
+     "attempt": 1,
+     "prompt_id": 3,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2031-12-30",
+     "attempt": 1,
+     "prompt_id": 4,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2031-12-30",
+     "attempt": 1,
+     "prompt_id": 5,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2031-12-30",
+     "attempt": 1,
+     "prompt_id": 6,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2031-12-30",
+     "attempt": 1,
+     "prompt_id": 7,
+     "points": 25,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2032-01-02",
+     "attempt": 1,
+     "prompt_id": 8,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2032-01-02",
+     "attempt": 1,
+     "prompt_id": 9,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2032-01-02",
+     "attempt": 1,
+     "prompt_id": 10,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2032-01-02",
+     "attempt": 1,
+     "prompt_id": 11,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2032-01-02",
+     "attempt": 1,
+     "prompt_id": 12,
+     "points": 50,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2032-01-02",
+     "attempt": 1,
+     "prompt_id": 13,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2032-01-02",
+     "attempt": 1,
+     "prompt_id": 14,
+     "points": 0,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2032-02-28",
+     "attempt": 1,
+     "prompt_id": 22,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2032-02-28",
+     "attempt": 1,
+     "prompt_id": 23,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2032-02-28",
+     "attempt": 1,
+     "prompt_id": 24,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2032-02-28",
+     "attempt": 1,
+     "prompt_id": 25,
+     "points": 15,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2032-02-28",
+     "attempt": 1,
+     "prompt_id": 26,
+     "points": 10,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2032-02-28",
+     "attempt": 1,
+     "prompt_id": 27,
+     "points": 100,
+     "rated": true,
+     "unanswered": false
+    },
+    {
+     "user_id": 2,
+     "date": "2032-02-28",
+     "attempt": 1,
+     "prompt_id": 28,
+     "points": 75,
+     "rated": true,
+     "unanswered": false
+    }
+   ],
+   "expected": {
+    "scopes": [
+     {
+      "user_id": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating": 1232.663479492223,
+      "rd": 122.31075580131713,
+      "volatility": 0.059978714315330015,
+      "games": 49,
+      "last_period": "2033-03-01"
+     },
+     {
+      "user_id": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating": 1232.663479492223,
+      "rd": 122.31075580131713,
+      "volatility": 0.059978714315330015,
+      "games": 49,
+      "last_period": "2033-03-01"
+     },
+     {
+      "user_id": 1,
+      "scope_type": "club",
+      "scope_id": 51,
+      "rating": 1267.2155398329674,
+      "rd": 187.3919390285385,
+      "volatility": 0.05999435982959358,
+      "games": 12,
+      "last_period": "2033-03-01"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating": 1414.6041374481301,
+      "rd": 121.95612432525606,
+      "volatility": 0.0599953974095308,
+      "games": 21,
+      "last_period": "2032-02-28"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating": 1414.6041374481301,
+      "rd": 121.95612432525606,
+      "volatility": 0.0599953974095308,
+      "games": 21,
+      "last_period": "2032-02-28"
+     },
+     {
+      "user_id": 2,
+      "scope_type": "club",
+      "scope_id": 51,
+      "rating": 1512.46949812299,
+      "rd": 206.6985832256622,
+      "volatility": 0.05999859133314112,
+      "games": 5,
+      "last_period": "2032-02-28"
+     }
+    ],
+    "history": [
+     {
+      "user_id": 1,
+      "date": "2031-12-30",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1434.5087678124416,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.059997613839163626,
+      "games": 7,
+      "score_sum": 3.6
+     },
+     {
+      "user_id": 1,
+      "date": "2031-12-30",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1434.5087678124416,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.059997613839163626,
+      "games": 7,
+      "score_sum": 3.6
+     },
+     {
+      "user_id": 1,
+      "date": "2031-12-30",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 51,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1627.4323179227436,
+      "rd_after": 292.59622274276575,
+      "volatility_after": 0.05999943946260668,
+      "games": 1,
+      "score_sum": 1.0
+     },
+     {
+      "user_id": 2,
+      "date": "2031-12-30",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1277.194157931849,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.059998843333398104,
+      "games": 7,
+      "score_sum": 2.25
+     },
+     {
+      "user_id": 2,
+      "date": "2031-12-30",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1277.194157931849,
+      "rd_after": 173.94190292311535,
+      "volatility_after": 0.059998843333398104,
+      "games": 7,
+      "score_sum": 2.25
+     },
+     {
+      "user_id": 2,
+      "date": "2031-12-30",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 51,
+      "rating_before": 1500.0,
+      "rd_before": 350.0,
+      "volatility_before": 0.06,
+      "rating_after": 1627.4323179227436,
+      "rd_after": 292.59622274276575,
+      "volatility_after": 0.05999943946260668,
+      "games": 1,
+      "score_sum": 1.0
+     },
+     {
+      "user_id": 1,
+      "date": "2032-01-02",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1434.5087678124416,
+      "rd_before": 174.56531443474304,
+      "volatility_before": 0.059997613839163626,
+      "rating_after": 1330.238606782163,
+      "rd_after": 130.86277655982474,
+      "volatility_after": 0.05999648824598035,
+      "games": 7,
+      "score_sum": 2.15
+     },
+     {
+      "user_id": 1,
+      "date": "2032-01-02",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1434.5087678124416,
+      "rd_before": 174.56531443474304,
+      "volatility_before": 0.059997613839163626,
+      "rating_after": 1330.238606782163,
+      "rd_after": 130.86277655982474,
+      "volatility_after": 0.05999648824598035,
+      "games": 7,
+      "score_sum": 2.15
+     },
+     {
+      "user_id": 1,
+      "date": "2032-01-02",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 51,
+      "rating_before": 1627.4323179227436,
+      "rd_before": 292.9672783718686,
+      "volatility_before": 0.05999943946260668,
+      "rating_after": 1462.7824143826529,
+      "rd_after": 237.1796703187204,
+      "volatility_after": 0.05999929744057148,
+      "games": 2,
+      "score_sum": 0.65
+     },
+     {
+      "user_id": 2,
+      "date": "2032-01-02",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1277.194157931849,
+      "rd_before": 174.56533993975756,
+      "volatility_before": 0.059998843333398104,
+      "rating_after": 1308.0729136004443,
+      "rd_after": 132.29362894908414,
+      "volatility_after": 0.05999356212256873,
+      "games": 7,
+      "score_sum": 3.15
+     },
+     {
+      "user_id": 2,
+      "date": "2032-01-02",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1277.194157931849,
+      "rd_before": 174.56533993975756,
+      "volatility_before": 0.059998843333398104,
+      "rating_after": 1308.0729136004443,
+      "rd_after": 132.29362894908414,
+      "volatility_after": 0.05999356212256873,
+      "games": 7,
+      "score_sum": 3.15
+     },
+     {
+      "user_id": 2,
+      "date": "2032-01-02",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 51,
+      "rating_before": 1627.4323179227436,
+      "rd_before": 292.9672783718686,
+      "volatility_before": 0.05999943946260668,
+      "rating_after": 1430.2831834752553,
+      "rd_after": 237.17967244038405,
+      "volatility_after": 0.05999994604839165,
+      "games": 2,
+      "score_sum": 0.5
+     },
+     {
+      "user_id": 1,
+      "date": "2032-01-31",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1330.238606782163,
+      "rd_before": 142.0092951839844,
+      "volatility_before": 0.05999648824598035,
+      "rating_after": 1372.2569613297042,
+      "rd_after": 115.72087403411138,
+      "volatility_after": 0.059991417514161455,
+      "games": 7,
+      "score_sum": 3.85
+     },
+     {
+      "user_id": 1,
+      "date": "2032-01-31",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1330.238606782163,
+      "rd_before": 142.0092951839844,
+      "volatility_before": 0.05999648824598035,
+      "rating_after": 1372.2569613297042,
+      "rd_after": 115.72087403411138,
+      "volatility_after": 0.059991417514161455,
+      "games": 7,
+      "score_sum": 3.85
+     },
+     {
+      "user_id": 1,
+      "date": "2032-01-31",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 51,
+      "rating_before": 1462.7824143826529,
+      "rd_before": 243.50781194439668,
+      "volatility_before": 0.05999929744057148,
+      "rating_after": 1453.6178361867337,
+      "rd_after": 204.01488478523808,
+      "volatility_after": 0.059997254411526285,
+      "games": 2,
+      "score_sum": 1.1
+     },
+     {
+      "user_id": 1,
+      "date": "2032-02-28",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1372.2569613297042,
+      "rd_before": 127.76451361706452,
+      "volatility_before": 0.059991417514161455,
+      "rating_after": 1296.0060786265092,
+      "rd_after": 107.46510609658348,
+      "volatility_after": 0.05999282099015423,
+      "games": 7,
+      "score_sum": 1.6
+     },
+     {
+      "user_id": 1,
+      "date": "2032-02-28",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1372.2569613297042,
+      "rd_before": 127.76451361706452,
+      "volatility_before": 0.059991417514161455,
+      "rating_after": 1296.0060786265092,
+      "rd_after": 107.46510609658348,
+      "volatility_after": 0.05999282099015423,
+      "games": 7,
+      "score_sum": 1.6
+     },
+     {
+      "user_id": 1,
+      "date": "2032-02-28",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 51,
+      "rating_before": 1453.6178361867337,
+      "rd_before": 211.08077629889013,
+      "volatility_before": 0.059997254411526285,
+      "rating_after": 1350.7149194825524,
+      "rd_after": 183.28845141360677,
+      "volatility_after": 0.05999715638475332,
+      "games": 2,
+      "score_sum": 0.25
+     },
+     {
+      "user_id": 2,
+      "date": "2032-02-28",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1308.0729136004443,
+      "rd_before": 153.5713455206255,
+      "volatility_before": 0.05999356212256873,
+      "rating_after": 1414.6041374481301,
+      "rd_after": 121.95612432525606,
+      "volatility_after": 0.0599953974095308,
+      "games": 7,
+      "score_sum": 4.75
+     },
+     {
+      "user_id": 2,
+      "date": "2032-02-28",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1308.0729136004443,
+      "rd_before": 153.5713455206255,
+      "volatility_before": 0.05999356212256873,
+      "rating_after": 1414.6041374481301,
+      "rd_after": 121.95612432525606,
+      "volatility_after": 0.0599953974095308,
+      "games": 7,
+      "score_sum": 4.75
+     },
+     {
+      "user_id": 2,
+      "date": "2032-02-28",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 51,
+      "rating_before": 1430.2831834752553,
+      "rd_before": 249.67588086082006,
+      "volatility_before": 0.05999994604839165,
+      "rating_after": 1512.46949812299,
+      "rd_after": 206.6985832256622,
+      "volatility_after": 0.05999859133314112,
+      "games": 2,
+      "score_sum": 1.5
+     },
+     {
+      "user_id": 1,
+      "date": "2032-03-01",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1296.0060786265092,
+      "rd_before": 107.96927052993968,
+      "volatility_before": 0.05999282099015423,
+      "rating_after": 1290.3164080971335,
+      "rd_after": 95.43027513953253,
+      "volatility_after": 0.05998509601711287,
+      "games": 7,
+      "score_sum": 2.65
+     },
+     {
+      "user_id": 1,
+      "date": "2032-03-01",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1296.0060786265092,
+      "rd_before": 107.96927052993968,
+      "volatility_before": 0.05999282099015423,
+      "rating_after": 1290.3164080971335,
+      "rd_after": 95.43027513953253,
+      "volatility_after": 0.05998509601711287,
+      "games": 7,
+      "score_sum": 2.65
+     },
+     {
+      "user_id": 1,
+      "date": "2032-03-01",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 51,
+      "rating_before": 1350.7149194825524,
+      "rd_before": 183.58454856186347,
+      "volatility_before": 0.05999715638475332,
+      "rating_after": 1382.9147782921116,
+      "rd_after": 173.36447702306216,
+      "volatility_after": 0.05999618732620944,
+      "games": 1,
+      "score_sum": 0.75
+     },
+     {
+      "user_id": 1,
+      "date": "2033-02-28",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1290.3164080971335,
+      "rd_before": 220.2811694950343,
+      "volatility_before": 0.05998509601711287,
+      "rating_after": 1181.7872590686943,
+      "rd_after": 148.62665783200015,
+      "volatility_after": 0.059982554979375956,
+      "games": 7,
+      "score_sum": 1.5
+     },
+     {
+      "user_id": 1,
+      "date": "2033-02-28",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1290.3164080971335,
+      "rd_before": 220.2811694950343,
+      "volatility_before": 0.05998509601711287,
+      "rating_after": 1181.7872590686943,
+      "rd_after": 148.62665783200015,
+      "volatility_after": 0.059982554979375956,
+      "games": 7,
+      "score_sum": 1.5
+     },
+     {
+      "user_id": 1,
+      "date": "2033-02-28",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 51,
+      "rating_before": 1382.9147782921116,
+      "rd_before": 263.6032547231183,
+      "volatility_before": 0.05999618732620944,
+      "rating_after": 1229.2204014298106,
+      "rd_after": 214.50122916008954,
+      "volatility_after": 0.05999619047448776,
+      "games": 2,
+      "score_sum": 0.1
+     },
+     {
+      "user_id": 1,
+      "date": "2033-03-01",
+      "attempt": 1,
+      "scope_type": "sport",
+      "scope_id": "football",
+      "rating_before": 1181.7872590686943,
+      "rd_before": 148.62665783200015,
+      "volatility_before": 0.059982554979375956,
+      "rating_after": 1232.663479492223,
+      "rd_after": 122.31075580131713,
+      "volatility_after": 0.059978714315330015,
+      "games": 7,
+      "score_sum": 3.0
+     },
+     {
+      "user_id": 1,
+      "date": "2033-03-01",
+      "attempt": 1,
+      "scope_type": "competition",
+      "scope_id": 1,
+      "rating_before": 1181.7872590686943,
+      "rd_before": 148.62665783200015,
+      "volatility_before": 0.059982554979375956,
+      "rating_after": 1232.663479492223,
+      "rd_after": 122.31075580131713,
+      "volatility_after": 0.059978714315330015,
+      "games": 7,
+      "score_sum": 3.0
+     },
+     {
+      "user_id": 1,
+      "date": "2033-03-01",
+      "attempt": 1,
+      "scope_type": "club",
+      "scope_id": 51,
+      "rating_before": 1229.2204014298106,
+      "rd_before": 214.50122916008954,
+      "volatility_before": 0.05999619047448776,
+      "rating_after": 1267.2155398329674,
+      "rd_after": 187.3919390285385,
+      "volatility_after": 0.05999435982959358,
+      "games": 2,
+      "score_sum": 1.0
+     }
+    ],
+    "prompts": [
+     {
+      "prompt_id": 1,
+      "rating": 1655.1944836727155,
+      "rd": 254.1475159562013,
+      "volatility": 0.05999968467282966,
+      "games": 2,
+      "locked": false,
+      "last_period": "2031-12-30",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 2,
+      "rating": 1483.2087485721515,
+      "rd": 254.76651654233618,
+      "volatility": 0.05999854549602972,
+      "games": 2,
+      "locked": false,
+      "last_period": "2031-12-30",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 3,
+      "rating": 1611.347882991452,
+      "rd": 255.55652014259954,
+      "volatility": 0.05999965966062418,
+      "games": 2,
+      "locked": false,
+      "last_period": "2031-12-30",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 4,
+      "rating": 1184.1193468774497,
+      "rd": 256.5131877667271,
+      "volatility": 0.05999950210086584,
+      "games": 2,
+      "locked": false,
+      "last_period": "2031-12-30",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 5,
+      "rating": 1299.4793005828942,
+      "rd": 257.6312744363216,
+      "volatility": 0.059998576291946784,
+      "games": 2,
+      "locked": false,
+      "last_period": "2031-12-30",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 6,
+      "rating": 1649.4751312205894,
+      "rd": 258.90466507925714,
+      "volatility": 0.06000109283874035,
+      "games": 2,
+      "locked": false,
+      "last_period": "2031-12-30",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 7,
+      "rating": 1541.033160988052,
+      "rd": 253.7029224946884,
+      "volatility": 0.059998600561372004,
+      "games": 2,
+      "locked": false,
+      "last_period": "2031-12-30",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 8,
+      "rating": 1515.694448574911,
+      "rd": 224.26238600898262,
+      "volatility": 0.059998196212326084,
+      "games": 2,
+      "locked": false,
+      "last_period": "2032-01-02",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 9,
+      "rating": 1318.6469603954267,
+      "rd": 223.16923803259448,
+      "volatility": 0.05999830613459363,
+      "games": 2,
+      "locked": false,
+      "last_period": "2032-01-02",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 10,
+      "rating": 1373.479469443529,
+      "rd": 222.36699547549625,
+      "volatility": 0.05999803695889739,
+      "games": 2,
+      "locked": false,
+      "last_period": "2032-01-02",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 11,
+      "rating": 1514.2313078929749,
+      "rd": 221.8593662383717,
+      "volatility": 0.0599985003624311,
+      "games": 2,
+      "locked": false,
+      "last_period": "2032-01-02",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 12,
+      "rating": 1444.0968715105537,
+      "rd": 221.64866092222897,
+      "volatility": 0.05999820101301539,
+      "games": 2,
+      "locked": false,
+      "last_period": "2032-01-02",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 13,
+      "rating": 1349.4982264751175,
+      "rd": 221.7358303474293,
+      "volatility": 0.05999801273246681,
+      "games": 2,
+      "locked": false,
+      "last_period": "2032-01-02",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 14,
+      "rating": 1524.8134362768242,
+      "rd": 225.64127914255397,
+      "volatility": 0.0599981715776499,
+      "games": 2,
+      "locked": false,
+      "last_period": "2032-01-02",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 15,
+      "rating": 1298.864919481153,
+      "rd": 262.54212243267455,
+      "volatility": 0.059999086548706275,
+      "games": 1,
+      "locked": false,
+      "last_period": "2032-01-31",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 16,
+      "rating": 1199.9185118933551,
+      "rd": 260.9930873607035,
+      "volatility": 0.05999983810023903,
+      "games": 1,
+      "locked": false,
+      "last_period": "2032-01-31",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 17,
+      "rating": 1190.929223642857,
+      "rd": 259.73444659305795,
+      "volatility": 0.05999969212751418,
+      "games": 1,
+      "locked": false,
+      "last_period": "2032-01-31",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 18,
+      "rating": 1497.763116888386,
+      "rd": 258.77954378618927,
+      "volatility": 0.059998869193947264,
+      "games": 1,
+      "locked": false,
+      "last_period": "2032-01-31",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 19,
+      "rating": 1468.7703096455264,
+      "rd": 258.1385373106487,
+      "volatility": 0.059998804946870994,
+      "games": 1,
+      "locked": false,
+      "last_period": "2032-01-31",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 20,
+      "rating": 1475.0696857268958,
+      "rd": 257.8182615051274,
+      "volatility": 0.05999897441002036,
+      "games": 1,
+      "locked": false,
+      "last_period": "2032-01-31",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 21,
+      "rating": 1308.1662219423479,
+      "rd": 264.36521038569106,
+      "volatility": 0.05999919763859719,
+      "games": 1,
+      "locked": false,
+      "last_period": "2032-01-31",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 22,
+      "rating": 1380.673411652314,
+      "rd": 218.10703239943808,
+      "volatility": 0.059998062443791494,
+      "games": 2,
+      "locked": false,
+      "last_period": "2032-02-28",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 23,
+      "rating": 1186.1210046194078,
+      "rd": 216.5424330890688,
+      "volatility": 0.05999943182913002,
+      "games": 2,
+      "locked": false,
+      "last_period": "2032-02-28",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 24,
+      "rating": 1426.5491948184363,
+      "rd": 215.32469518055765,
+      "volatility": 0.059997953418987345,
+      "games": 2,
+      "locked": false,
+      "last_period": "2032-02-28",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 25,
+      "rating": 1438.872678771798,
+      "rd": 214.461145052175,
+      "volatility": 0.059998018223344454,
+      "games": 2,
+      "locked": false,
+      "last_period": "2032-02-28",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 26,
+      "rating": 1565.026843609825,
+      "rd": 213.95679675788284,
+      "volatility": 0.05999905822474711,
+      "games": 2,
+      "locked": false,
+      "last_period": "2032-02-28",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 27,
+      "rating": 1319.9870482958959,
+      "rd": 213.81438203217635,
+      "volatility": 0.05999792759257289,
+      "games": 2,
+      "locked": false,
+      "last_period": "2032-02-28",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 28,
+      "rating": 1385.4211403768636,
+      "rd": 220.0088259654023,
+      "volatility": 0.05999814041903712,
+      "games": 2,
+      "locked": false,
+      "last_period": "2032-02-28",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 29,
+      "rating": 1182.9439889126106,
+      "rd": 262.2087378455512,
+      "volatility": 0.06000033395431256,
+      "games": 1,
+      "locked": false,
+      "last_period": "2032-03-01",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 30,
+      "rating": 1544.1841243254778,
+      "rd": 260.00573352484486,
+      "volatility": 0.05999892859255825,
+      "games": 1,
+      "locked": false,
+      "last_period": "2032-03-01",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 31,
+      "rating": 1531.3397373048356,
+      "rd": 258.087467512458,
+      "volatility": 0.05999895122443971,
+      "games": 1,
+      "locked": false,
+      "last_period": "2032-03-01",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 32,
+      "rating": 1250.1858556661691,
+      "rd": 256.4747899900825,
+      "volatility": 0.05999891790336359,
+      "games": 1,
+      "locked": false,
+      "last_period": "2032-03-01",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 33,
+      "rating": 1418.0682707000162,
+      "rd": 255.18531881837666,
+      "volatility": 0.05999853437971391,
+      "games": 1,
+      "locked": false,
+      "last_period": "2032-03-01",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 34,
+      "rating": 1442.2105871681815,
+      "rd": 254.2331893944769,
+      "volatility": 0.05999871312393607,
+      "games": 1,
+      "locked": false,
+      "last_period": "2032-03-01",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 35,
+      "rating": 1380.0736549276905,
+      "rd": 264.6727076152178,
+      "volatility": 0.05999874998655053,
+      "games": 1,
+      "locked": false,
+      "last_period": "2032-03-01",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 36,
+      "rating": 1523.0686551186748,
+      "rd": 276.4173030580121,
+      "volatility": 0.05999893628767814,
+      "games": 1,
+      "locked": false,
+      "last_period": "2033-02-28",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 37,
+      "rating": 1367.1267739157938,
+      "rd": 274.84662135957126,
+      "volatility": 0.05999880143946872,
+      "games": 1,
+      "locked": false,
+      "last_period": "2033-02-28",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 38,
+      "rating": 1478.838595528786,
+      "rd": 273.4721162694427,
+      "volatility": 0.05999887376894987,
+      "games": 1,
+      "locked": false,
+      "last_period": "2033-02-28",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 39,
+      "rating": 1483.470871592329,
+      "rd": 272.30672063201814,
+      "volatility": 0.05999897833532668,
+      "games": 1,
+      "locked": false,
+      "last_period": "2033-02-28",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 40,
+      "rating": 1505.4056438260798,
+      "rd": 271.3614998842962,
+      "volatility": 0.059999247515087485,
+      "games": 1,
+      "locked": false,
+      "last_period": "2033-02-28",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 41,
+      "rating": 1440.7936798365351,
+      "rd": 270.64549233695897,
+      "volatility": 0.05999893902847106,
+      "games": 1,
+      "locked": false,
+      "last_period": "2033-02-28",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 42,
+      "rating": 1390.6056077814812,
+      "rd": 278.16955036119265,
+      "volatility": 0.05999890609426218,
+      "games": 1,
+      "locked": false,
+      "last_period": "2033-02-28",
+      "seed_rating": 1460.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 43,
+      "rating": 1112.4948866642594,
+      "rd": 281.61198086122965,
+      "volatility": 0.06000173795570073,
+      "games": 1,
+      "locked": false,
+      "last_period": "2033-03-01",
+      "seed_rating": 1440.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 44,
+      "rating": 1308.6045812616408,
+      "rd": 278.62962813927504,
+      "volatility": 0.05999911904691141,
+      "games": 1,
+      "locked": false,
+      "last_period": "2033-03-01",
+      "seed_rating": 1420.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 45,
+      "rating": 1298.264292664944,
+      "rd": 275.76408394469263,
+      "volatility": 0.059999020088495045,
+      "games": 1,
+      "locked": false,
+      "last_period": "2033-03-01",
+      "seed_rating": 1400.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 46,
+      "rating": 1423.7453695631923,
+      "rd": 273.04251572095825,
+      "volatility": 0.05999875069944992,
+      "games": 1,
+      "locked": false,
+      "last_period": "2033-03-01",
+      "seed_rating": 1380.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 47,
+      "rating": 1429.847908609749,
+      "rd": 270.4914110374627,
+      "volatility": 0.05999879351708446,
+      "games": 1,
+      "locked": false,
+      "last_period": "2033-03-01",
+      "seed_rating": 1360.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 48,
+      "rating": 1266.999201285564,
+      "rd": 268.1361336197396,
+      "volatility": 0.05999877131850406,
+      "games": 1,
+      "locked": false,
+      "last_period": "2033-03-01",
+      "seed_rating": 1340.0,
+      "seed_rd": 350.0
+     },
+     {
+      "prompt_id": 49,
+      "rating": 1434.7834949262287,
+      "rd": 284.68375256972024,
+      "volatility": 0.05999889217605621,
+      "games": 1,
+      "locked": false,
+      "last_period": "2033-03-01",
       "seed_rating": 1460.0,
       "seed_rd": 350.0
      }

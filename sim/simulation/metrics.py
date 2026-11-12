@@ -8,7 +8,7 @@ import itertools
 
 import numpy as np
 
-from rating.core import SCALE, Opponent, rate_period
+from rating.core import CENTER, SCALE, Opponent, rate_period
 from rating.params import Params
 
 from .oracle import spearman
@@ -71,15 +71,16 @@ def seed_stats(prefix: str, rating: np.ndarray, truth: np.ndarray, templates: li
         out[f"{prefix}.template.{t}.rmse"] = float(np.sqrt(np.mean(err[sel] ** 2)))
 
 
-def e_pred_deciles(world: World, snapshot, games: GameArrays, rep: Replayed, used_pos: dict[int, int], out: dict) -> None:
+def e_pred_deciles(world: World, snapshot, games: GameArrays, rep: Replayed, used_pos: dict[int, int], out: dict,
+                   points_scale: float) -> None:
     """The engine's predicted result for every game (player's rating at the start of the dive against the prompt's
     seed rating, with the prompt's g(RD)) against the result that happened, by decile of the prediction."""
     r_player = rep.rating_before[games.player, games.date]
     pos = np.array([used_pos[int(j)] for j in games.prompt])
-    mu_j, phi_j = (rep.prompt_seed[pos] - 1500.0) / SCALE, rep.prompt_rd_seed[pos] / SCALE
+    mu_j, phi_j = (rep.prompt_seed[pos] - CENTER) / SCALE, rep.prompt_rd_seed[pos] / SCALE
     g = 1.0 / np.sqrt(1.0 + 3.0 * phi_j**2 / np.pi**2)
-    e = 1.0 / (1.0 + np.exp(-g * ((r_player - 1500.0) / SCALE - mu_j)))
-    actual = games.points / 100.0
+    e = 1.0 / (1.0 + np.exp(-g * ((r_player - CENTER) / SCALE - mu_j)))
+    actual = games.points / points_scale
     order = np.argsort(e, kind="mergesort")
     worst = 0.0
     for k, chunk in enumerate(np.array_split(order, 10), 1):
@@ -123,7 +124,7 @@ def run_metrics(world: World, snapshot, true_prompt: np.ndarray, true_bk: np.nda
     seed_stats("after", rep.prompt_rating, true_prompt, templates, out)
     out["prompt.rd_seed"] = float(rep.prompt_rd_seed.mean())
     out["prompt.games_mean"] = float(rep.prompt_games.mean())
-    e_pred_deciles(world, snapshot, games, rep, used_pos, out)
+    e_pred_deciles(world, snapshot, games, rep, used_pos, out, float(max(tunables["tiers"]["points"])))
 
     last = rep.rating[:, -1]
     ok = ~np.isnan(last)
@@ -144,7 +145,10 @@ def run_metrics(world: World, snapshot, true_prompt: np.ndarray, true_bk: np.nda
     # RD calibration: error after removing the cross-section's level offset on each date, from date 7 on
     start = REPORT_DATES[0] - 1
     errs, rds, mis, unc = [], [], [], []
-    bk_pct, true_pct = percentile_matrix(rep.rating), percentile_matrix(true_full)
+    # both percentiles over the same players: those with a BK and a true BK on the date
+    rated_both = np.where(present & ~np.isnan(true_full), 1.0, np.nan)
+    bk_pct = percentile_matrix(rep.rating * rated_both)
+    true_pct = percentile_matrix(true_full * rated_both)
     for t in range(start, T):
         sel = present[:, t] & ~np.isnan(true_full[:, t])
         if sel.sum() < MIN_COHORT:

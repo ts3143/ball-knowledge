@@ -3,7 +3,16 @@ import random
 
 import pytest
 
-from rating.core import MAX_ITERATIONS, SCALE, Opponent, VolatilityError, idle_rd, new_volatility, rate_period
+from rating.core import (
+    MAX_ITERATIONS,
+    SCALE,
+    DegeneratePeriodError,
+    Opponent,
+    VolatilityError,
+    idle_rd,
+    new_volatility,
+    rate_period,
+)
 from rating.golden import GLICKMAN, golden_params
 
 P = golden_params()
@@ -101,3 +110,12 @@ def test_summation_order_is_the_callers_order():
     opps = [Opponent(1400.0 + 37 * k, 50.0 + 11 * k, 0.15 * (k % 5)) for k in range(9)]
     a = rate_period(1500.0, 120.0, 0.06, 0, opps, P)
     assert a == rate_period(1500.0, 120.0, 0.06, 0, list(opps), P)
+
+
+def test_saturated_expected_results_raise_a_clear_error():
+    with pytest.raises(DegeneratePeriodError, match="saturate"):
+        rate_period(1500.0, 50.0, 0.06, 0, [Opponent(-6000.0, 30.0, 1.0)], P)  # E is exactly 1
+    with pytest.raises(DegeneratePeriodError):
+        rate_period(1500.0, 50.0, 0.06, 0, [Opponent(200000.0, 30.0, 0.0)], P)  # exp overflows
+    out = rate_period(1500.0, 50.0, 0.06, 0, [Opponent(-6000.0, 30.0, 1.0), Opponent(1500.0, 30.0, 0.5)], P)
+    assert math.isfinite(out.rating)  # one informative game is enough

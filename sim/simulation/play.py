@@ -6,9 +6,10 @@ from datetime import date, timedelta
 
 import numpy as np
 
-from rating.core import CENTER, SCALE, Opponent, rate_period  # noqa: F401
+from rating.core import CENTER, SCALE
 from rating.engine import replay
 from rating.params import Params
+from rating.seed import prompt_features as seed_features
 from rating.types import CLUB, SPORT, Game, Prompt
 
 from .answers import sample_prompt
@@ -17,7 +18,6 @@ from .snapshot import Snapshot
 from .world import World, prompt_outcomes
 
 D0 = date(2030, 1, 1)
-FEATURES = ("log_recall_mass", "ln_answer_count", "top_share", "ln_n_eff")
 
 
 @dataclass(frozen=True)
@@ -49,8 +49,10 @@ def sample_games(world: World, snapshot: Snapshot, rng: np.random.Generator) -> 
 def prompt_features(snapshot: Snapshot, j: int) -> dict[str, float]:
     """The seed features of prompt j, frozen at approval (design section 3)."""
     p = snapshot.prompts[j]
-    return {"log_recall_mass": float(p["rarity"]["log_recall_mass"]), "ln_answer_count": float(np.log(p["answer_count"])),
-            "top_share": float(p["top_share"]), "ln_n_eff": float(np.log(p["n_eff"]))}
+    # the snapshot flattens gate_results.tiers.{top_share, n_eff} onto the prompt
+    tiers = {"top_share": p["top_share"], "n_eff": p["n_eff"]}
+    return {**seed_features(p["rarity"], {"tiers": tiers}), "ln_answer_count": float(np.log(p["answer_count"])),
+            "top_share": float(p["top_share"])}
 
 
 def engine_inputs(world: World, snapshot: Snapshot, games: GameArrays, offsets: dict[str, float]):
@@ -63,22 +65,28 @@ def engine_inputs(world: World, snapshot: Snapshot, games: GameArrays, offsets: 
     return prompts, rated
 
 
-def true_bk_matrix(world: World, snapshot: Snapshot, oracle: Oracle, base_result_mean: np.ndarray, dates: list[int],
-                   points_scale: float) -> np.ndarray:
-    """(m, len(dates)) true BK of each player with their knowledge on each date, against every played prompt. Players
-    without drift do not change, so only the drifters are recomputed per date."""
-    base = CENTER + SCALE * solve_true_bk(oracle.v, base_result_mean)
-    out = np.tile(base[:, None], (1, len(dates)))
+def true_bk_at(world: World, snapshot: Snapshot, oracle: Oracle, base_result_mean: np.ndarray, date: int,
+               points_scale: float, base_bk: np.ndarray | None = None) -> np.ndarray:
+    """True BK of every player with their knowledge on `date`, against every played prompt. `base_result_mean` is
+    each player's mean expected result on the base knowledge. Players without drift do not change, so only the
+    drifters are recomputed (`base_bk`, the solved base, can be passed to avoid solving it again)."""
+    out = CENTER + SCALE * solve_true_bk(oracle.v, base_result_mean) if base_bk is None else base_bk.copy()
     drifters = np.flatnonzero(world.drift != 0.0)
-    if len(drifters) == 0:
-        return out
-    for k, d in enumerate(dates):
+    if len(drifters):
         total = np.zeros(len(drifters))
         for j in world.used:
-            o = prompt_outcomes(world, snapshot, int(j), drifters, d)
+            o = prompt_outcomes(world, snapshot, int(j), drifters, date)
             total += o.p_valid * (o.q @ snapshot.points[snapshot.answers(int(j))]) / points_scale
-        out[drifters, k] = CENTER + SCALE * solve_true_bk(oracle.v, total / len(world.used))
+        out[drifters] = CENTER + SCALE * solve_true_bk(oracle.v, total / len(world.used))
     return out
+
+
+def true_bk_matrix(world: World, snapshot: Snapshot, oracle: Oracle, base_result_mean: np.ndarray, dates: list[int],
+                   points_scale: float) -> np.ndarray:
+    """(m, len(dates)): true_bk_at for each date."""
+    base = CENTER + SCALE * solve_true_bk(oracle.v, base_result_mean)
+    cols = [true_bk_at(world, snapshot, oracle, base_result_mean, d, points_scale, base) for d in dates]
+    return np.stack(cols, axis=1)
 
 
 @dataclass(frozen=True)

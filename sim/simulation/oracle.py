@@ -69,9 +69,10 @@ def spearman(a: np.ndarray, b: np.ndarray) -> float:
         order = np.argsort(x, kind="mergesort")
         r = np.empty(len(x))
         r[order] = np.arange(len(x), dtype=float)
-        for value in np.unique(x[np.diff(np.sort(x), prepend=np.nan) == 0]):
+        for value in np.unique(x):
             tied = x == value
-            r[tied] = r[tied].mean()
+            if tied.sum() > 1:
+                r[tied] = r[tied].mean()
         return r
 
     a, b = np.asarray(a), np.asarray(b)

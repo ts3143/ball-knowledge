@@ -11,9 +11,10 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from . import ENGINE_VERSION
-from .core import Opponent, rate_period
+from .core import DegeneratePeriodError, Opponent, rate_period
 from .engine import replay
 from .params import Params, SeedParams
+from .seed import prompt_features
 from .types import Game, Prompt
 
 GOLDEN_PATH = Path(__file__).resolve().parents[1] / "tests" / "glicko2_cases.json"
@@ -55,6 +56,55 @@ def core_case(name: str, rating: float, rd: float, volatility: float, idle_perio
     }
 
 
+def core_error_case(name: str, rating: float, rd: float, volatility: float,
+                    opponents: list[tuple[float, float, float]], params: Params) -> dict:
+    """A period the engine must refuse: every expected result saturates to exactly 0 or 1."""
+    try:
+        rate_period(rating, rd, volatility, 0, [Opponent(*o) for o in opponents], params)
+    except DegeneratePeriodError:
+        pass
+    else:
+        raise AssertionError(f"{name} did not raise")
+    return {
+        "name": name,
+        "params": {"tau": params.tau, "volatility_epsilon": params.volatility_epsilon,
+                   "game_weight": params.game_weight, "initial_rd": params.initial_rd},
+        "input": {"rating": rating, "rd": rd, "volatility": volatility, "idle_periods": 0,
+                  "opponents": [{"rating": r, "rd": d, "score": s} for r, d, s in opponents]},
+        "expected_error": "degenerate",
+    }
+
+
+# prompts rows as the database stores them (placeholder numbers): rarity and gate_results jsonb
+FEATURE_CASES = [
+    ("typical", {"log_recall_mass": 11.25, "version": "x"}, {"tiers": {"n_eff": 7.5, "top_share": 0.31}}),
+    ("n_eff_one", {"log_recall_mass": -3.5}, {"tiers": {"n_eff": 1}}),
+    ("n_eff_large", {"log_recall_mass": 0}, {"tiers": {"n_eff": 110.25}}),
+]
+FEATURE_ERROR_CASES = [
+    ("n_eff_zero", {"log_recall_mass": 1.0}, {"tiers": {"n_eff": 0}}),
+    ("n_eff_negative", {"log_recall_mass": 1.0}, {"tiers": {"n_eff": -2.0}}),
+    ("n_eff_missing", {"log_recall_mass": 1.0}, {"tiers": {}}),
+    ("tiers_missing", {"log_recall_mass": 1.0}, {}),
+    ("recall_missing", {}, {"tiers": {"n_eff": 4.0}}),
+    ("recall_null", {"log_recall_mass": None}, {"tiers": {"n_eff": 4.0}}),
+    ("n_eff_string", {"log_recall_mass": 1.0}, {"tiers": {"n_eff": "7.5"}}),
+]
+
+
+def feature_cases() -> list[dict]:
+    out = [{"name": n, "rarity": r, "gate_results": gr, "expected": prompt_features(r, gr)}
+           for n, r, gr in FEATURE_CASES]
+    for n, r, gr in FEATURE_ERROR_CASES:
+        try:
+            prompt_features(r, gr)
+        except ValueError:
+            out.append({"name": n, "rarity": r, "gate_results": gr, "expected_error": "invalid"})
+        else:
+            raise AssertionError(f"{n} did not raise")
+    return out
+
+
 def core_cases() -> list[dict]:
     rng = random.Random(SEED)
     cases = []
@@ -73,6 +123,10 @@ def core_cases() -> list[dict]:
     cases.append(core_case("rd_350_big_gap", 1500.0, 350.0, 0.06, 0, [(-1500.0, 350.0, 1.0)], golden_params()))
     cases.append(core_case("fractional_results_w2", 1500.0, 350.0, 0.06, 0,
                            [(1500.0, 350.0, 0.25), (1600.0, 350.0, 0.15)], golden_params(game_weight=2.0)))
+    # Saturated expected results: E is exactly 1 (and, far enough out, exp overflows): the period is refused.
+    cases.append(core_error_case("saturated_expected_one", 1500.0, 50.0, 0.06, [(-6000.0, 30.0, 1.0)], golden_params()))
+    cases.append(core_error_case("saturated_exp_overflow", 1500.0, 50.0, 0.06, [(200000.0, 30.0, 0.0)],
+                                 golden_params()))
     for i in range(CORE_RANDOM_CASES):
         n = rng.randint(1, 10)
         opponents = [(round(rng.uniform(1000, 2200), 3), round(rng.uniform(30, 350), 3), rng.choice(POINTS) / 100.0)
@@ -95,6 +149,12 @@ def _dive(day: date, user: int, attempt: int, prompt_ids: list[int], rng: random
 
 def _prompts(ids: list[int], competition: int, clubs: dict[int, tuple[int, ...]] | None = None) -> list[Prompt]:
     return [Prompt(i, competition, (clubs or {}).get(i, ()), {"log_recall_mass": -1.0 - (i % 7) * 0.5}) for i in ids]
+
+
+def _two_feature_prompts(ids: list[int], competition: int) -> list[Prompt]:
+    """Prompts with both seed features and a template offset that changes with the id."""
+    return [Prompt(i, competition, (), {"log_recall_mass": 9.5 + (i % 7) * 0.75, "ln_n_eff": 1.0 + (i % 5) * 0.8},
+                   (12.5, -30.0, 0.0)[i % 3]) for i in ids]
 
 
 def replay_scenarios() -> list[tuple[str, Params, list[Prompt], list[Game]]]:
@@ -155,6 +215,36 @@ def replay_scenarios() -> list[tuple[str, Params, list[Prompt], list[Game]]]:
     games += _dive(day(1), 1, 1, ids[7:14], rng, rated=False)
     games += _dive(day(1), 2, 1, ids[7:14], rng)
     out.append(("abandoned_attempt", golden_params(), _prompts(ids, 1), games))
+
+    # Two users in two competitions share club 41 on one date: each user's club parent is that user's own first
+    # prompt touching it (user 1 -> competition 1, user 2 -> competition 2), whatever the other user plays.
+    p = (_prompts(list(range(1, 8)), 1, {1: (41,)}) + _prompts(list(range(8, 15)), 2, {8: (41,)})
+         + _prompts(list(range(15, 22)), 1, {15: (41,)}) + _prompts(list(range(22, 29)), 2))
+    games = _dive(day(0), 1, 1, list(range(22, 29)), rng) + _dive(day(0), 2, 1, list(range(22, 29)), rng)
+    games += _dive(day(1), 1, 1, list(range(1, 8)), rng) + _dive(day(1), 2, 1, list(range(8, 15)), rng)
+    games += _dive(day(2), 1, 1, list(range(15, 22)), rng)
+    out.append(("two_users_shared_club", golden_params(), p, games))
+
+    # A two-coefficient seed map with template offsets (the shape of the fitted tunables).
+    ids = list(range(1, 15))
+    seed = SeedParams(2476.79, 60.0, {"log_recall_mass": -71.0242, "ln_n_eff": 36.3276})
+    games = []
+    for d in range(2):
+        for user in (1, 2):
+            games += _dive(day(d), user, 1, ids[d * 7:(d + 1) * 7], rng)
+    out.append(("two_feature_seed_offsets", golden_params(seed=seed), _two_feature_prompts(ids, 1), games))
+
+    # Calendar edges: a year end, a leap day (2032-02-29, skipped between the 28th and 1 March), a month end and
+    # a non-leap February, one 7-prompt dive per date.
+    dates = [date(2031, 12, 30), date(2032, 1, 2), date(2032, 1, 31), date(2032, 2, 28), date(2032, 3, 1),
+             date(2033, 2, 28), date(2033, 3, 1)]
+    ids = list(range(1, 50))
+    games = []
+    for k, d in enumerate(dates):
+        games += _dive(d, 1, 1, ids[k * 7:(k + 1) * 7], rng)
+    for k in (0, 1, 3):
+        games += _dive(dates[k], 2, 1, ids[k * 7:(k + 1) * 7], rng)
+    out.append(("calendar_edges", golden_params(), _prompts(ids, 1, {i: (51,) for i in ids if i % 4 == 0}), games))
     return out
 
 
@@ -188,6 +278,7 @@ def build() -> dict:
         "engine_version": ENGINE_VERSION,
         "relative_tolerance": RELATIVE_TOLERANCE,
         "core": core_cases(),
+        "features": feature_cases(),
         "replay": [replay_case(*s) for s in replay_scenarios()],
     }
 

@@ -19,7 +19,9 @@ from rating.core import CENTER, SCALE
 from rating.params import load_tunables
 
 from .answers import VALID, sample_prompt
+from .metrics import REPORT_DATES
 from .oracle import Oracle, fit_oracle, solve_true_bk, spearman
+from .play import true_bk_at
 from .snapshot import SIM_ROOT, Snapshot, check_retiering, load_snapshot
 from .world import (
     COHORTS,
@@ -35,8 +37,6 @@ from .world import (
 OUTPUT_DIR = SIM_ROOT / "output"
 PERCENTILES = (10, 25, 50, 75, 90, 99)
 PERCENTILE_WINDOW = 2.5  # a band is the players within this many percentile points of the percentile
-REPORT_DATES = (7, 14, 28, 61)  # 1-based dive dates the design reports at
-TIER_NAMES = ("Bandwagon", "Casual", "Real One", "Deep Cut", "You Know Ball")
 EXAMPLE_PROMPTS = 3
 ROUND = 8
 
@@ -84,22 +84,6 @@ def sample_dives(world: World, snapshot: Snapshot, rng: np.random.Generator) -> 
     return dives
 
 
-def true_bk_at(world: World, snapshot: Snapshot, oracle: Oracle, expected: ExpectedMatrices, date: int,
-               points_scale: float) -> np.ndarray:
-    """True BK of every player with their knowledge on `date`, against all used prompts. Players without drift do
-    not change, so only the drifters are recomputed."""
-    target = expected.result.mean(axis=1)
-    drifters = np.flatnonzero(world.drift != 0.0)
-    if len(drifters):
-        total = np.zeros(len(drifters))
-        for j in world.used:
-            o = prompt_outcomes(world, snapshot, int(j), drifters, date)
-            total += (o.p_valid * (o.q @ snapshot.points[snapshot.answers(int(j))])) / points_scale
-        target = target.copy()
-        target[drifters] = total / len(world.used)
-    return CENTER + SCALE * solve_true_bk(oracle.v, target)
-
-
 def club_true_bk(world: World, snapshot: Snapshot, oracle: Oracle, expected: ExpectedMatrices) -> tuple[list[int], np.ndarray]:
     used = list(world.used)
     clubs = sorted({c for j in used for c in snapshot.club_ids[j]})
@@ -118,7 +102,7 @@ def run_world(snapshot: Snapshot, cfg: dict, tunables: dict, seed: int, world_na
     oracle = fit_oracle(expected.result)
     dives = sample_dives(world, snapshot, streams(seed)["answers"])
     dates = sorted({0} | {min(d, world.n_dates) - 1 for d in REPORT_DATES})
-    true_bk = {d: true_bk_at(world, snapshot, oracle, expected, d, scale) for d in dates}
+    true_bk = {d: true_bk_at(world, snapshot, oracle, expected.result.mean(axis=1), d, scale) for d in dates}
     clubs, club_bk = club_true_bk(world, snapshot, oracle, expected)
     return WorldRun(world, expected, oracle, dives, true_bk, club_bk, clubs)
 
@@ -280,6 +264,7 @@ def pct(x: float, digits: int = 1) -> str:
 
 def report_markdown(metrics: dict, examples: list[dict], cfg: dict, tunables: dict, snapshot: Snapshot) -> str:
     m, rows = metrics, metrics["by_percentile"]
+    tier_names = tunables["tiers"]["names"]
     out_of = rows[0]["dive_score_out_of"]
     wrong_world = m["world"] == "model-wrong"
     lines = [
@@ -327,7 +312,7 @@ def report_markdown(metrics: dict, examples: list[dict], cfg: dict, tunables: di
                      f"{pct(r['wrong_rate'])} | {r['mean_points_per_prompt']:.1f} | {r['dive_score']:.0f} | "
                      f"{r['sampled_dive_median']:.0f} ({r['sampled_dive_p10']:.0f} to {r['sampled_dive_p90']:.0f}) |")
     lines += ["", "Tier mix of the valid answers each group gives (share of their valid answers in each tier):", "",
-              "| percentile | " + " | ".join(TIER_NAMES) + " |", "|---|" + "---|" * len(TIER_NAMES)]
+              "| percentile | " + " | ".join(tier_names) + " |", "|---|" + "---|" * len(tier_names)]
     for r in rows:
         lines.append(f"| p{r['percentile']} | " + " | ".join(pct(x) for x in r["tier_mix"]) + " |")
     lines += ["", "![Dive score by percentile](dive_score_by_percentile.png)", "",
@@ -343,7 +328,7 @@ def report_markdown(metrics: dict, examples: list[dict], cfg: dict, tunables: di
                   f"sampled, rank correlation predicted vs simulated {summary['spearman_predicted_vs_simulated']:.3f})"), "",
                   "| rank | tier | predicted | simulated | sampled |", "|---|---|---|---|---|"]
         for k in show:
-            lines.append(f"| {k_rank(order, k)} | {TIER_NAMES[int(e['tier'][k]) - 1]} | {pct(e['predicted'][k], 2)} | "
+            lines.append(f"| {k_rank(order, k)} | {tier_names[int(e['tier'][k]) - 1]} | {pct(e['predicted'][k], 2)} | "
                          f"{pct(e['simulated'][k], 2)} | {pct(e['sampled'][k], 2)} |")
         lines.append("")
     lines += ["![Pick shares](pick_shares.png)", "", "## True prompt ratings by template", "",

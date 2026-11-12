@@ -18,7 +18,6 @@ from .commands import (
 )
 from .experiment import Task, aggregate, evaluate_bars, run_tasks
 from .metrics import CLUB_STEPS
-from .play import FEATURES  # noqa: F401
 from .report_sweep import write_sweep_outputs, write_tiers_outputs
 from .seedfit import propose, with_seed
 from .snapshot import check_retiering, load_snapshot

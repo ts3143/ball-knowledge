@@ -133,7 +133,7 @@ game_weight = 1.0
 # Re-tune it if game_weight changes.
 uncertain_rd_threshold = 110
 # T (2026-11-12): 10, from the step-4 sim. At ~18 prompts per club in two months, 97% of daily fans see their
-# club rating (median day 28, rank accuracy 0.90); at 20 only half would. Shown with the uncertain marker.
+# club rating (median day 28, rank accuracy 0.92); at 20 only half would. Shown with the uncertain marker.
 club_rating_min_prompts = 10
 prompt_lock_answers = 200
 # irt_refit_min_rated_answers = 1000 (later, not first build)

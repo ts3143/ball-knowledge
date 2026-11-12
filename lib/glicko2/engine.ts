@@ -1,5 +1,8 @@
 /** Replay of rated games into ratings: one rating period per (user, scope, dive date), and one per prompt.
  *
+ * A club's parent competition is chosen per user: the competition of the user's own first rated prompt that tags the
+ * club (the lowest competition id on a date tie), so one user's games never change another user's ratings.
+ *
  * Dates run in ascending order. Within a date every user is independent, and prompts are settled after all users
  * from the player states at the start of the date, so a prompt's rating is frozen for the whole date. After each
  * attempt a user's period for the date is recomputed from the state before the date using all the date's games so
@@ -9,6 +12,7 @@
 import { idleRd, ratePeriod, type Opponent } from "./core";
 import { idlePeriods } from "./display";
 import { seedRating, seedRd } from "./seed";
+import { checkGames, checkParams, checkPrompts } from "./validate";
 import {
   CLUB,
   COMPETITION,
@@ -39,21 +43,22 @@ function sortedKeys<V>(map: Map<number, V>): number[] {
   return [...map.keys()].sort(byNumber);
 }
 
-/** A club's parent competition is that of the prompt that first touched it; the lowest id on a date tie. */
-export function clubParents(prompts: Map<number, Prompt>, firstDate: Map<number, string>): Map<number, number> {
-  const best = new Map<number, [string, number]>();
-  for (const pid of sortedKeys(firstDate)) {
-    const p = prompts.get(pid) as Prompt;
-    const day = firstDate.get(pid) as string;
+/** "user|club" -> parent competition: that of the user's first rated prompt that tags the club, the lowest
+ * competition id on a date tie. */
+export function clubParents(prompts: Map<number, Prompt>, games: readonly Game[]): Map<string, number> {
+  const best = new Map<string, [string, number]>();
+  for (const g of games) {
+    const p = prompts.get(g.prompt_id) as Prompt;
     for (const club of p.club_ids) {
-      const current = best.get(club);
-      if (current === undefined || compareDates(day, current[0]) < 0 ||
-          (day === current[0] && p.competition_id < current[1])) {
-        best.set(club, [day, p.competition_id]);
+      const key = `${g.user_id}|${club}`;
+      const current = best.get(key);
+      if (current === undefined || compareDates(g.date, current[0]) < 0 ||
+          (g.date === current[0] && p.competition_id < current[1])) {
+        best.set(key, [g.date, p.competition_id]);
       }
     }
   }
-  return new Map([...best].map(([club, [, competition]]) => [club, competition]));
+  return new Map([...best].map(([key, [, competition]]) => [key, competition]));
 }
 
 export function promptScopes(p: Prompt): Scope[] {
@@ -74,19 +79,17 @@ export function replay(prompts: readonly Prompt[], games: readonly Game[], param
     if (promptById.has(p.id)) throw new Error(`duplicate prompt id ${p.id}`);
     promptById.set(p.id, p);
   }
+  checkParams(params);
+  checkPrompts(prompts);
   const rated = games.filter((g) => g.rated); // archive plays never enter the engine
   for (const g of rated) {
     if (!promptById.has(g.prompt_id)) throw new Error(`game for unknown prompt ${g.prompt_id}`);
   }
+  checkGames(rated, params.points_scale);
 
   const byDate = new Map<string, Game[]>();
-  const firstDate = new Map<number, string>();
-  for (const g of rated) {
-    push(byDate, g.date, g);
-    const first = firstDate.get(g.prompt_id);
-    if (first === undefined || g.date < first) firstDate.set(g.prompt_id, g.date);
-  }
-  const parentClub = clubParents(promptById, firstDate);
+  for (const g of rated) push(byDate, g.date, g);
+  const parentClub = clubParents(promptById, rated);
   const sportOf = new Map<number, string>(); // competition -> sport
   for (const pid of sortedKeys(promptById)) {
     const p = promptById.get(pid) as Prompt;
@@ -95,8 +98,8 @@ export function replay(prompts: readonly Prompt[], games: readonly Game[], param
     else if (known !== p.sport) throw new Error(`competition ${p.competition_id} appears in two sports`);
   }
 
-  const parentOf = (scope: Scope): Scope | null => {
-    if (scope[0] === CLUB) return [COMPETITION, parentClub.get(scope[1] as number) as number];
+  const parentOf = (uid: number, scope: Scope): Scope | null => {
+    if (scope[0] === CLUB) return [COMPETITION, parentClub.get(`${uid}|${scope[1]}`) as number];
     if (scope[0] === COMPETITION) return [SPORT, sportOf.get(scope[1] as number) as string];
     return null;
   };
@@ -159,7 +162,7 @@ function playUser(
   promptById: Map<number, Prompt>,
   promptStates: Map<number, PromptState>,
   states: Map<string, [Scope, State]>,
-  parentOf: (scope: Scope) => Scope | null,
+  parentOf: (uid: number, scope: Scope) => Scope | null,
   params: Params,
   history: HistoryRow[],
   settle: Map<number, SettleRow[]>,
@@ -173,7 +176,7 @@ function playUser(
     if (cached !== undefined) return cached;
     let result: State;
     const before = pre.get(key);
-    const parent = before === undefined ? parentOf(scope) : null;
+    const parent = before === undefined ? parentOf(uid, scope) : null;
     if (before !== undefined) {
       const st = before[1];
       if (st.last_period === null) throw new Error("stored state without last_period");

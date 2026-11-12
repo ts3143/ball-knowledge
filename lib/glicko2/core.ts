@@ -18,6 +18,16 @@ export class VolatilityError extends Error {
   }
 }
 
+/** Every game of the period has an expected result of exactly 0 or 1 (a rating gap beyond about 6000 points), so
+ * the games carry no information (v is infinite) and the update is undefined. Glickman's system has no rule for it;
+ * we refuse rather than invent one. Real ratings stay far from this. */
+export class DegeneratePeriodError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DegeneratePeriodError";
+  }
+}
+
 export interface Opponent {
   rating: number;
   rd: number;
@@ -131,6 +141,9 @@ export function ratePeriod(
     const e = expected(mu, (o.rating - CENTER) / SCALE, go);
     invV += w * go * go * e * (1.0 - e);
     gain += w * go * (o.score - e);
+  }
+  if (!(invV > 0.0)) {
+    throw new DegeneratePeriodError(`expected results saturate (rating ${rating}, RD ${rd}): no information to rate`);
   }
   const v = 1.0 / invV;
   const delta = v * gain;
