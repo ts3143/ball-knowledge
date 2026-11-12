@@ -1,5 +1,6 @@
-"""Quality gates, as pure functions over the numbers. The completeness gate is recorded as not run;
-the mix gate is a provisional pageview proxy until step 3's obviousness score replaces it."""
+"""Quality gates, as pure functions over the numbers. The completeness gate is recorded as not run.
+The mix gate is a provisional pageview proxy and advisory in step 2 (T): it records what it would
+decide but never changes a prompt's status. Step 3 checks the real tier spread instead."""
 
 import math
 
@@ -29,12 +30,14 @@ def fame_cutoffs(fames: list[int], quality_gates: dict) -> tuple[float, float]:
 
 def mix_gate(fames: list[int], cutoffs: tuple[float, float], quality_gates: dict) -> dict:
     """fames: total pageviews of each answer, 0 for none. Obvious: at or above the obvious cutoff.
-    Obscure: below the obscure cutoff, or no pageviews at all."""
+    Obscure: below the obscure cutoff, or no pageviews at all. "pass" is what the gate would decide;
+    the cutoffs are those of the answers' entity type, so a stored result can be explained."""
     obvious_cut, obscure_cut = cutoffs
     obvious = sum(f > 0 and f >= obvious_cut for f in fames)
     obscure = sum(f == 0 or f < obscure_cut for f in fames)
     mn_obvious, mn_obscure = quality_gates["mix_min_obvious"], quality_gates["mix_min_obscure"]
     return {"obvious": obvious, "obscure": obscure, "min_obvious": mn_obvious, "min_obscure": mn_obscure,
+            "obvious_cutoff": obvious_cut, "obscure_cutoff": obscure_cut, "advisory": True,
             "pass": obvious >= mn_obvious and obscure >= mn_obscure}
 
 
@@ -47,6 +50,6 @@ def gate_results(n: int, quality_gates: dict, mix: dict | None = None) -> dict:
 
 
 def status(results: dict) -> str:
-    """gate_passed if every gate that ran passed, else gate_failed."""
-    ran = [g for g in results.values() if isinstance(g, dict)]
+    """gate_passed if every blocking gate that ran passed, else gate_failed. Advisory gates are ignored."""
+    ran = [g for g in results.values() if isinstance(g, dict) and not g.get("advisory")]
     return "gate_passed" if all(g["pass"] for g in ran) else "gate_failed"

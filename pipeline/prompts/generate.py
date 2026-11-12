@@ -6,19 +6,16 @@ set would differ and leaves them alone.
 """
 
 import json
-import sys
 from dataclasses import dataclass, field
 
 import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
+from ingest.console import log
+
 from . import gates
 from .templates import TEMPLATES, Template
-
-
-def log(msg: str) -> None:
-    print(msg, file=sys.stderr, flush=True)
 
 
 @dataclass
@@ -51,10 +48,11 @@ class Stats:
     gate_passed: int = 0
     too_few: int = 0
     too_many: int = 0
-    too_few_obvious: int = 0
+    too_few_obvious: int = 0  # advisory mix gate, over all generated prompts
     too_few_obscure: int = 0
-    size_passed: int = 0
-    pass_at_min: dict[int, int] = field(default_factory=dict)
+    mix_would_fail: int = 0  # advisory: size-passing prompts whose mix gate would fail
+    pass_at_min: dict[int, int] = field(default_factory=dict)  # size only
+    pass_at_min_mix: dict[int, int] = field(default_factory=dict)  # size, and the advisory mix would pass
     inserted: int = 0
     updated: int = 0
     unchanged: int = 0
@@ -159,14 +157,15 @@ def _store(cur, template: Template, competition_id: int, generated: list[Generat
     for g in generated:
         size, mix = g.gate_results["size"], g.gate_results["mix"]
         stats.gate_passed += g.status == "gate_passed"
-        stats.size_passed += size["pass"]
+        stats.mix_would_fail += size["pass"] and not mix["pass"]
         stats.too_few += size["n"] < size["min"]
         stats.too_many += size["n"] > size["max"]
         stats.too_few_obvious += mix["obvious"] < mix["min_obvious"]
         stats.too_few_obscure += mix["obscure"] < mix["min_obscure"]
     for alt in quality_gates["report_min_answers_alternatives"]:
-        stats.pass_at_min[alt] = sum(alt <= len(g.answers) <= quality_gates["max_answers"]
-                                     and g.gate_results["mix"]["pass"] for g in generated)
+        sized = [g for g in generated if alt <= len(g.answers) <= quality_gates["max_answers"]]
+        stats.pass_at_min[alt] = len(sized)
+        stats.pass_at_min_mix[alt] = sum(g.gate_results["mix"]["pass"] for g in sized)
 
     cur.execute("select id, params, status, text, answer_query, club_ids, gate_results, answer_count"
                 " from prompts where competition_id = %s and template = %s", (competition_id, template.id))
@@ -244,10 +243,12 @@ def print_summary(stats: dict[str, Stats], dry_run: bool) -> None:
     for template_id, s in stats.items():
         print(f"\n{template_id}")
         print(f"  generated {s.generated}   gate_passed {s.gate_passed}   "
-              f"failed: too few {s.too_few}, too many {s.too_many}, "
-              f"too few obvious {s.too_few_obvious}, too few obscure {s.too_few_obscure}")
-        print(f"  passed size {s.size_passed}, of which mix removed {s.size_passed - s.gate_passed}")
-        print("  would pass (size and mix) at min answers  " + "   ".join(f"{m}: {n}" for m, n in s.pass_at_min.items()))
+              f"failed: too few {s.too_few}, too many {s.too_many}   "
+              f"(advisory mix: too few obvious {s.too_few_obvious}, too few obscure {s.too_few_obscure})")
+        print(f"  mix (advisory, not rejecting): would fail for {s.mix_would_fail} of the {s.gate_passed} gate_passed")
+        print("  would pass size at min answers  " + "   ".join(f"{m}: {n}" for m, n in s.pass_at_min.items())
+              + "   (of which mix would pass: "
+              + ", ".join(f"{m}: {n}" for m, n in s.pass_at_min_mix.items()) + ")")
         print(f"  inserted {s.inserted}   updated {s.updated}   unchanged {s.unchanged}   deleted {s.deleted}")
         if s.approved or s.approved_gone:
             print(f"  approved {s.approved} (answer set differs: {len(s.approved_diffs)}, "

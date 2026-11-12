@@ -1,11 +1,12 @@
 -- Players with citizenship of the country and a played_for season in the competition.
--- Undated spells say nothing about which season, so they are skipped.
+-- Undated spells and spells with an end but no start say nothing about which season, so they are skipped.
 -- edge_season: every season row is an edge. weak_stint: every season row has a weak reason.
 with seasons as (
   select ss.person_id, ss.fact_id, ss.edge, cardinality(ss.weak_reasons) > 0 as weak
   from stint_seasons(%(current_from_year)s) ss
   join entities comp on comp.id = ss.competition_id and comp.wikidata_id = %(competition)s
   where ss.predicate = 'played_for' and ss.date_quality <> 'undated'
+    and not ('no_start' = any(ss.weak_reasons))
 ),
 played as (
   select person_id, array_agg(distinct fact_id order by fact_id) as fact_ids,

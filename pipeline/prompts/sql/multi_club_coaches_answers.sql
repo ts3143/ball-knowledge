@@ -1,5 +1,5 @@
 -- Coaches with a dated coached season at two or more distinct clubs of the competition.
--- Undated spells are skipped. edge_season: fewer than two clubs have a non-edge season.
+-- Undated and end-only (no_start) spells are skipped. edge_season: fewer than two clubs have a non-edge season.
 -- weak_stint: fewer than two clubs have a non-weak season.
 with per_club as (
   select ss.person_id, ss.club_id, array_agg(distinct ss.fact_id) as fact_ids,
@@ -7,6 +7,7 @@ with per_club as (
   from stint_seasons(%(current_from_year)s) ss
   join entities comp on comp.id = ss.competition_id and comp.wikidata_id = %(competition)s
   where ss.predicate = 'coached' and ss.date_quality <> 'undated'
+    and not ('no_start' = any(ss.weak_reasons))
   group by ss.person_id, ss.club_id
 )
 select person_id as entity_id,

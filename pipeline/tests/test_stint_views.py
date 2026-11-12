@@ -234,3 +234,39 @@ def test_season_club_did_not_compete_yields_no_row(fx):
     fx.stint(club=other, quality="undated")
     assert len(fx.stints()) == 1
     assert fx.seasons() == {}
+
+
+def test_end_only_stint_is_weak_no_start_but_still_covers_earlier_seasons(fx):
+    fx.stint(start_year=None, end_year=2010, end_precision=9, end_date=date(2010, 1, 1))
+    [(reasons,)] = fx.cur.execute("select weak_reasons from stints(%s) where person_id = %s",
+                                  (CUTOFF, fx.person)).fetchall()
+    assert reasons == ["no_start"]
+    assert {y: weak for y, (_, weak) in fx.seasons().items()} == {
+        2008: ["no_start"], 2009: ["no_start"], 2010: ["no_start"]}
+
+
+def test_stints_with_a_known_start_or_nothing_known_are_not_no_start(fx):
+    fx.stint(start_year=2009, end_year=2010, start_precision=9, end_precision=9)
+    fx.stint(quality="undated")
+    fx.stint(quality="open_ended", start_year=2009, start_precision=9)
+    reasons = [r for (r,) in fx.cur.execute("select weak_reasons from stints(%s) where person_id = %s",
+                                            (CUTOFF, fx.person)).fetchall()]
+    assert all("no_start" not in r for r in reasons)
+
+
+def test_a_season_still_running_is_kept(fx):
+    fx.n += 1
+    fx.cur.execute(
+        "insert into facts (subject_id, predicate, object_id, start_year, end_year, start_date, end_date,"
+        " date_quality, source_ref) values (%s, 'competed_in', %s, 2013, 2014, %s, null, 'dated', %s)",
+        (fx.club, fx.comp, date(2013, 8, 1), f"test:season:{fx.n}"))
+    fx.stint(start_year=2013, end_year=2013, start_precision=9, end_precision=9)
+    assert fx.seasons() == {2012: (True, []), 2013: (True, [])}  # 2013 has no end date
+
+
+def test_the_data_api_roles_have_no_access_to_prompts_or_sequences(fx):
+    for role in ("anon", "authenticated"):
+        for table in ("prompts", "prompt_answers", "club_seasons"):
+            assert fx.cur.execute("select has_table_privilege(%s, %s, 'select')", (role, table)).fetchone() == (False,)
+        assert fx.cur.execute("select has_sequence_privilege(%s, 'prompts_id_seq', 'usage')",
+                              (role,)).fetchone() == (False,)

@@ -13,8 +13,9 @@ import time
 import psycopg
 
 from ingest.config import load_settings
+from ingest.console import log
 
-from .generate import generate, log, print_summary
+from .generate import generate, print_summary
 from .report import print_report
 from .templates import TEMPLATES
 

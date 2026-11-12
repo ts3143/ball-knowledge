@@ -8,5 +8,6 @@ where co.type = 'country'
     join stint_seasons(%(current_from_year)s) ss on ss.person_id = n.subject_id
     join entities comp on comp.id = ss.competition_id and comp.wikidata_id = %(competition)s
     where n.object_id = co.id and n.predicate = 'nationality' and not n.stale
-      and ss.predicate = 'played_for' and ss.date_quality <> 'undated')
+      and ss.predicate = 'played_for' and ss.date_quality <> 'undated'
+      and not ('no_start' = any(ss.weak_reasons)))
 order by substr(co.wikidata_id, 2)::bigint

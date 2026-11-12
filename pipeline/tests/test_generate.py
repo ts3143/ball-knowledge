@@ -5,6 +5,7 @@ from datetime import date
 import psycopg
 import pytest
 from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
 
 from ingest.config import load_settings
 from prompts.generate import generate
@@ -39,14 +40,14 @@ def conn():
 
 
 class World:
-    def __init__(self, conn):
+    def __init__(self, conn, seasons=None):
         self.conn = conn
         self.cur = conn.cursor(row_factory=dict_row)
         self.n = 0
         self.comp = self.entity("competition", "Test League")
         self.clubs = {c: self.entity("club", f"Test Club {c}") for c in "ABCDE"}
         self.country = self.entity("country", "Test Country")
-        for year, letters in SEASONS.items():
+        for year, letters in (seasons or SEASONS).items():
             for letter in letters:
                 self.fact(self.clubs[letter]["id"], "competed_in", self.comp["id"], start_year=year,
                           end_year=year + 1, start_date=date(year, 8, 1), end_date=date(year + 1, 5, 31))
@@ -95,6 +96,18 @@ class World:
 @pytest.fixture
 def world(conn):
     return World(conn)
+
+
+def stint_without_start(w, person, club, predicate="played_for", end_year=2012, **cols):
+    """A spell that ends at a known year but has no start year."""
+    return w.stint(person, club, predicate=predicate, start_year=None, start_precision=None, end_year=end_year,
+                   **cols)
+
+
+def stint_out_of_the_league(w, person, club, predicate="played_for", **cols):
+    """A month-precision spell between two seasons of club C (2008-09 and 2011-12): 2009-09 to 2010-05."""
+    return w.stint(person, club, predicate=predicate, start_year=2009, start_date=date(2009, 9, 1),
+                   start_precision=11, end_year=2010, end_date=date(2010, 5, 31), end_precision=11, **cols)
 
 
 def pair_params(w, a, b):
@@ -343,15 +356,24 @@ def test_no_moves_when_the_next_season_is_not_fully_listed(world):
 
 def test_answer_query_reproduces_the_answer_set(world):
     w = world
-    p1, p2 = w.person("P1"), w.person("P2")
+    p1, p2, winner = w.person("P1"), w.person("P2"), w.person("Winner")
     for p in (p1, p2):
         w.stint(p, "A")
         w.stint(p, "B")
-    w.run("club_pair", "relegated_clubs")
-    for template in ("club_pair", "relegated_clubs"):
+    w.stint(p2, "B", apps=None)
+    w.fact(w.clubs["A"]["id"], "won", w.comp["id"], start_year=2010, end_year=2011)
+    w.stint(winner, "A", start_year=2011, end_year=2013)  # reaches the 2010 title only as an edge
+    w.run("club_pair", "relegated_clubs", "club_title_winners")
+    for template in ("club_pair", "relegated_clubs", "club_title_winners"):
         [prompt] = w.prompts(template)
-        rerun = w.cur.execute(prompt["answer_query"]).fetchall()
-        assert {r["entity_id"] for r in rerun} == set(w.answers(prompt["id"]))
+        rerun = {r["entity_id"]: (r["evidence_fact_ids"], r["flags"])
+                 for r in w.cur.execute(prompt["answer_query"]).fetchall()}
+        stored = {e: (r["evidence_fact_ids"], r["flags"]) for e, r in w.answers(prompt["id"]).items()}
+        assert rerun == stored
+    # The season template's flags and evidence are really in what was compared.
+    [titles] = w.prompts("club_title_winners")
+    assert w.answers(titles["id"])[winner["id"]]["flags"] == ["edge_season"]
+    assert len(w.answers(titles["id"])[winner["id"]]["evidence_fact_ids"]) == 2
 
 
 def test_gate_status_and_counts(world):
@@ -395,15 +417,19 @@ def test_mix_gate_quantiles_are_per_entity_type_over_all_answer_sets(world):
     # Persons: fames 0,0,0,0,10,20,30,40,50 -> obvious cutoff (q 0.75) 30, obscure cutoff (q 0.5) 10.
     a = w.only("club_coaches", club=w.clubs["A"]["wikidata_id"])
     b = w.only("club_coaches", club=w.clubs["B"]["wikidata_id"])
+    cutoffs = {"obvious_cutoff": 30, "obscure_cutoff": 10, "advisory": True}
     assert a["gate_results"]["mix"] == {"obvious": 3, "obscure": 1, "min_obvious": 2, "min_obscure": 1,
-                                        "pass": True}
+                                        "pass": True, **cutoffs}
     assert b["gate_results"]["mix"] == {"obvious": 0, "obscure": 3, "min_obvious": 2, "min_obscure": 1,
-                                        "pass": False}
-    assert (a["status"], b["status"]) == ("gate_passed", "gate_failed")
+                                        "pass": False, **cutoffs}
+    # The mix gate is advisory: B would fail it but stays gate_passed.
+    assert (a["status"], b["status"]) == ("gate_passed", "gate_passed")
     # Clubs: fames 0 and 100 -> cutoffs 75 and 50.
     [relegated] = w.prompts("relegated_clubs")
     assert relegated["gate_results"]["mix"]["obvious"] == 1
     assert relegated["gate_results"]["mix"]["obscure"] == 1
+    assert (relegated["gate_results"]["mix"]["obvious_cutoff"], relegated["gate_results"]["mix"]["obscure_cutoff"]) \
+        == (75, 50)
 
 
 def test_template_filter_does_not_change_the_cutoffs(world):
@@ -508,3 +534,129 @@ def test_dry_run_writes_nothing(world):
     stats = w.run("club_pair", dry_run=True)["club_pair"]
     assert stats.inserted == 1
     assert w.prompts("club_pair") == []
+
+
+def test_end_only_stint_counts_in_club_pair_flagged_weak(world):
+    w = world
+    p1 = w.person("P1")
+    stint_without_start(w, p1, "A")
+    w.stint(p1, "B")
+    w.run("club_pair")
+    answers = w.answers(w.only("club_pair", **pair_params(w, "A", "B"))["id"])
+    assert answers[p1["id"]]["flags"] == ["weak_stint"]
+
+
+def test_end_only_stint_is_not_a_season_template_answer(world):
+    w = world
+    winner, end_only, citizen, end_only_citizen = (
+        w.person(n) for n in ("Winner", "EndOnly", "Citizen", "EndOnlyCitizen"))
+    w.fact(w.clubs["A"]["id"], "won", w.comp["id"], start_year=2010, end_year=2011)
+    w.stint(winner, "A")
+    stint_without_start(w, end_only, "A")  # ends 2012; with start -infinity it would cover the 2010 title
+    for p in (citizen, end_only_citizen):
+        w.fact(p["id"], "nationality", w.country["id"])
+    w.stint(citizen, "A")
+    stint_without_start(w, end_only_citizen, "A")
+    two, one_end_only = w.person("Two"), w.person("OneEndOnly")
+    w.stint(two, "A", predicate="coached", apps=None, start_year=2009, end_year=2011)
+    w.stint(two, "B", predicate="coached", apps=None)
+    w.stint(one_end_only, "A", predicate="coached", apps=None, start_year=2009, end_year=2011)
+    stint_without_start(w, one_end_only, "B", predicate="coached", apps=None)
+    w.run("club_title_winners", "bundesliga_nationality", "multi_club_coaches")
+    [titles] = w.prompts("club_title_winners")
+    assert set(w.answers(titles["id"])) == {winner["id"], citizen["id"]}  # not the end-only spells
+    nationality = w.only("bundesliga_nationality", country=w.country["wikidata_id"])
+    assert set(w.answers(nationality["id"])) == {citizen["id"]}
+    [coaches] = w.prompts("multi_club_coaches")
+    assert set(w.answers(coaches["id"])) == {two["id"]}
+
+
+def test_a_spell_while_the_club_is_out_of_the_league_is_not_a_season_template_answer(world):
+    w = world
+    citizen, away = w.person("Citizen"), w.person("Away")
+    for p in (citizen, away):
+        w.fact(p["id"], "nationality", w.country["id"])
+    w.stint(citizen, "A")
+    stint_out_of_the_league(w, away, "C")
+    two, one_away = w.person("Two"), w.person("OneAway")
+    w.stint(two, "A", predicate="coached", apps=None, start_year=2009, end_year=2011)
+    w.stint(two, "B", predicate="coached", apps=None)
+    w.stint(one_away, "A", predicate="coached", apps=None, start_year=2009, end_year=2011)
+    stint_out_of_the_league(w, one_away, "C", predicate="coached", apps=None)
+    w.run("bundesliga_nationality", "multi_club_coaches")
+    nationality = w.only("bundesliga_nationality", country=w.country["wikidata_id"])
+    assert set(w.answers(nationality["id"])) == {citizen["id"]}
+    [coaches] = w.prompts("multi_club_coaches")
+    assert set(w.answers(coaches["id"])) == {two["id"]}
+
+
+def test_same_template_and_params_in_two_competitions_are_both_stored(world):
+    w = world
+    p1 = w.person("P1")
+    w.fact(w.clubs["A"]["id"], "won", w.comp["id"], start_year=2010, end_year=2011)
+    w.stint(p1, "A")
+    w.run("club_title_winners")
+    [first] = w.prompts("club_title_winners")
+    other = w.entity("competition", "Other Test League")
+    w.cur.execute(
+        "insert into prompts (template, params, text, answer_type, answer_query, competition_id, facts_as_of)"
+        " values (%s, %s, 'x', 'person', 'select 1', %s, now())",
+        (first["template"], Jsonb(first["params"]), other["id"]))
+    w.run("club_title_winners")
+    assert w.cur.execute("select count(*) as n from prompts where template = 'club_title_winners'"
+                         " and params = %s and competition_id in (%s, %s)",
+                         (Jsonb(first["params"]), w.comp["id"], other["id"])).fetchone()["n"] == 2
+    with pytest.raises(psycopg.errors.UniqueViolation):
+        w.cur.execute(
+            "insert into prompts (template, params, text, answer_type, answer_query, competition_id, facts_as_of)"
+            " values (%s, %s, 'x', 'person', 'select 1', %s, now())",
+            (first["template"], Jsonb(first["params"]), other["id"]))
+
+
+def test_a_template_filter_deletes_nothing_of_other_templates_or_competitions(world):
+    w = world
+    p1 = w.person("P1")
+    w.stint(p1, "A")
+    w.stint(p1, "B")
+    w.stint(p1, "A", predicate="coached", apps=None)
+    w.run()
+    other = w.entity("competition", "Other Test League")
+    w.cur.execute(
+        "insert into prompts (template, params, text, answer_type, answer_query, competition_id, facts_as_of)"
+        " values ('club_pair', '{}', 'x', 'person', 'select 1', %s, now())", (other["id"],))
+    coaches = len(w.prompts("club_coaches"))
+    assert coaches > 0
+    stats = w.run("club_pair")
+    assert list(stats) == ["club_pair"] and stats["club_pair"].deleted == 0
+    assert len(w.prompts("club_coaches")) == coaches
+    assert w.cur.execute("select count(*) as n from prompts where competition_id = %s",
+                         (other["id"],)).fetchone()["n"] == 1
+
+
+def test_unknown_competition_raises(world):
+    with pytest.raises(SystemExit, match="No competition entity"):
+        generate(world.conn, "Q99999999999", TUNABLES)
+
+
+def test_competition_without_seasons_raises(world):
+    w = world
+    empty = w.entity("competition", "Empty Test League")
+    with pytest.raises(SystemExit, match="No seasons"):
+        generate(w.conn, empty["wikidata_id"], TUNABLES)
+
+
+def test_a_short_middle_season_cuts_the_relegation_and_promotion_range(conn):
+    # 2010 lists only A and B. Relegation event years need seasons e - 1 and e fully listed, so 2010 and 2011
+    # are undecidable; promotion event years e = 2010 and 2011 likewise. The latest run is 2012-2013.
+    w = World(conn, seasons={2008: "ABC", 2009: "ABD", 2010: "AB", 2011: "ABC", 2012: "ABD", 2013: "ABC"})
+    w.run("relegated_clubs", "promoted_clubs")
+    for template in ("relegated_clubs", "promoted_clubs"):
+        [prompt] = w.prompts(template)
+        assert (prompt["params"]["from_year"], prompt["params"]["to_year"]) == (2012, 2013)
+        assert set(w.answers(prompt["id"])) == {w.clubs["C"]["id"], w.clubs["D"]["id"]}
+
+
+def test_an_over_listed_season_is_undecidable(conn):
+    w = World(conn, seasons={2008: "ABC", 2009: "ABCD", 2010: "ABC"})
+    w.run("relegated_clubs", "promoted_clubs")
+    assert w.prompts("relegated_clubs") == [] and w.prompts("promoted_clubs") == []

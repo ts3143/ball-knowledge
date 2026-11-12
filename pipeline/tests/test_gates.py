@@ -47,7 +47,8 @@ CUTOFFS = (100, 50)
 def test_mix_gate_boundaries_are_at_or_above_obvious_and_below_obscure():
     # 100 is obvious (at the cutoff); 50 is not obscure (at the cutoff); 49 is obscure.
     mix = mix_gate([100, 100, 100, 50, 49, 49, 49], CUTOFFS, QUALITY_GATES)
-    assert mix == {"obvious": 3, "obscure": 3, "min_obvious": 3, "min_obscure": 3, "pass": True}
+    assert mix == {"obvious": 3, "obscure": 3, "min_obvious": 3, "min_obscure": 3, "obvious_cutoff": 100,
+                   "obscure_cutoff": 50, "advisory": True, "pass": True}
     assert mix_gate([100, 100, 99, 49, 49, 49], CUTOFFS, QUALITY_GATES)["pass"] is False  # 2 obvious
     assert mix_gate([100, 100, 100, 50, 50, 49], CUTOFFS, QUALITY_GATES)["pass"] is False  # only 1 obscure
 
@@ -58,13 +59,17 @@ def test_mix_gate_no_pageviews_counts_as_obscure_even_with_a_zero_cutoff():
     assert mix_gate([0, 0, 0], CUTOFFS, QUALITY_GATES)["obscure"] == 3
 
 
-def test_status_combines_size_and_mix():
+def test_status_ignores_an_advisory_mix_gate_that_fails():
     good = mix_gate([100] * 3 + [0] * 3, CUTOFFS, QUALITY_GATES)
     bad = mix_gate([0] * 6, CUTOFFS, QUALITY_GATES)
     assert status(gate_results(20, QUALITY_GATES, good)) == "gate_passed"
-    assert status(gate_results(20, QUALITY_GATES, bad)) == "gate_failed"  # size fine, mix fails
+    assert bad["pass"] is False
+    assert status(gate_results(20, QUALITY_GATES, bad)) == "gate_passed"  # size fine, mix would fail: advisory
     assert status(gate_results(14, QUALITY_GATES, good)) == "gate_failed"  # mix fine, size fails
 
 
-def test_status_ignores_gates_not_run_but_not_failed_ones():
-    assert status({"size": {"pass": True}, "mix": {"pass": False}, "completeness": "not_run"}) == "gate_failed"
+def test_status_ignores_gates_not_run_but_not_failed_blocking_ones():
+    assert status({"size": {"pass": False}, "mix": {"pass": True, "advisory": True}, "completeness": "not_run"}) \
+        == "gate_failed"
+    assert status({"size": {"pass": True}, "mix": {"pass": False, "advisory": True}, "completeness": "not_run"}) \
+        == "gate_passed"

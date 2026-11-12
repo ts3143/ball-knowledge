@@ -42,7 +42,8 @@ min_answers = 12
 max_answers = 300
 # The report shows how many prompts would pass (size and mix) at each of these minimums.
 report_min_answers_alternatives = [10, 12, 15]
-# Mix gate: a provisional proxy on Wikipedia pageviews (de+en, all months) that step 3's obviousness
+# Mix gate: advisory in step 2 (recorded, never rejects; step 3 checks the real tier spread instead).
+# A provisional proxy on Wikipedia pageviews (de+en, all months) that step 3's obviousness
 # score replaces. Quantiles are global per entity type, over every entity in any generated answer set.
 # Obvious = views at or above the obvious quantile; obscure = below the obscure quantile or no pageviews.
 mix_obvious_quantile = 0.75

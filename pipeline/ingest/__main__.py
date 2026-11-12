@@ -10,7 +10,6 @@ entity_aliases, facts, entity_pageviews.
 
 import argparse
 import json
-import sys
 import time
 from collections import defaultdict
 from dataclasses import dataclass
@@ -19,6 +18,7 @@ from datetime import UTC, date, datetime
 import psycopg
 
 from .config import CACHE_DIR, RAW_DIR, load_settings
+from .console import log
 from .dewiki import DewikiApi, Page, coach_stations, player_rows
 from .dryrun import dry_run
 from .extract import (
@@ -47,10 +47,6 @@ from .sparql import Sparql, qid
 from .wbapi import EntityApi
 
 RUN_STATS = CACHE_DIR / "last_run_stats.json"
-
-
-def log(msg: str) -> None:
-    print(msg, file=sys.stderr, flush=True)
 
 
 def fill_missing_labels(api: EntityApi, entities: dict[str, dict], ids: list[str], languages: list[str]) -> None:

@@ -6,7 +6,7 @@ with seasons as (
   join entities comp on comp.id = cs.competition_id and comp.wikidata_id = %(competition)s
 ),
 listed as (
-  select y from seasons group by y having count(distinct club_id) >= %(teams_per_season)s
+  select y from seasons group by y having count(distinct club_id) = %(teams_per_season)s
 )
 select a.club_id as entity_id,
        array_agg(a.fact_id order by a.y) as evidence_fact_ids,

@@ -16,6 +16,7 @@ import psycopg
 from psycopg.rows import dict_row
 
 from ingest.normalize import normalize
+from ingest.report import _q
 
 from .generate import current_from_year
 from .templates import TEMPLATES
@@ -23,11 +24,6 @@ from .templates import TEMPLATES
 REVIEW_DIR = Path(__file__).resolve().parents[1] / "data" / "review"
 NAME_CHECK_LIMIT = 30
 _PARENTHETICAL = re.compile(r"\s*\([^)]*\)\s*$")
-
-
-def _q(cur, sql: str, params=None) -> list[tuple]:
-    cur.execute(sql, params)
-    return cur.fetchall()
 
 
 def name_mismatch(canonical_name: str, enwiki_title: str) -> bool:
@@ -94,21 +90,37 @@ class Data:
 def template_numbers(data: Data, template_id: str) -> dict:
     prompts, passing = data.of(template_id), data.passing(template_id)
     gr = [p["gate_results"] for p in prompts]
+    mixes = [g["mix"] for g in gr if isinstance(g["mix"], dict)]  # "not_run" before the mix gate existed
     answers = [a for p in passing for a in p["answers"]]
     maximum = data.qg["max_answers"]
     return {
         "generated": len(prompts), "passed": len(passing),
         "too_few": sum(g["size"]["n"] < g["size"]["min"] for g in gr),
         "too_many": sum(g["size"]["n"] > g["size"]["max"] for g in gr),
-        "too_few_obvious": sum(g["mix"]["obvious"] < g["mix"]["min_obvious"] for g in gr),
-        "too_few_obscure": sum(g["mix"]["obscure"] < g["mix"]["min_obscure"] for g in gr),
-        "size_passed": sum(g["size"]["pass"] for g in gr),
-        "yield": {alt: sum(alt <= p["answer_count"] <= maximum and p["gate_results"]["mix"]["pass"]
-                           for p in prompts) for alt in data.qg["report_min_answers_alternatives"]},
+        "too_few_obvious": sum(m["obvious"] < m["min_obvious"] for m in mixes),
+        "too_few_obscure": sum(m["obscure"] < m["min_obscure"] for m in mixes),
+        "mix_would_fail": sum(not mix_passes(p["gate_results"]) for p in passing),
+        "yield": {alt: sum(alt <= p["answer_count"] <= maximum for p in prompts)
+                  for alt in data.qg["report_min_answers_alternatives"]},
+        "yield_mix": {alt: sum(alt <= p["answer_count"] <= maximum and mix_passes(p["gate_results"])
+                               for p in prompts) for alt in data.qg["report_min_answers_alternatives"]},
         "answers": len(answers),
         "weak": sum("weak_stint" in a["flags"] for a in answers),
         "edge": sum("edge_season" in a["flags"] for a in answers),
     }
+
+
+def mix_passes(results: dict) -> bool:
+    """A mix gate that did not run counts as not passed."""
+    return isinstance(results["mix"], dict) and results["mix"]["pass"]
+
+
+def mix_line(results: dict) -> str:
+    mix = results["mix"]
+    if not isinstance(mix, dict):
+        return "mix (advisory): not run"
+    verdict = "would pass" if mix["pass"] else "would fail"
+    return f"mix (advisory): {mix['obvious']} obvious / {mix['obscure']} obscure, {verdict}"
 
 
 def pct(n: int, total: int) -> str:
@@ -118,10 +130,11 @@ def pct(n: int, total: int) -> str:
 def format_numbers(n: dict) -> list[str]:
     return [
         (f"generated {n['generated']}   gate_passed {n['passed']}   failed: too few {n['too_few']}, "
-         f"too many {n['too_many']}, too few obvious {n['too_few_obvious']}, too few obscure {n['too_few_obscure']}"
-         "   (a prompt can fail several)"),
-        f"passed size {n['size_passed']}, of which mix removed {n['size_passed'] - n['passed']}",
-        "yield (size and mix) at min answers  " + "   ".join(f"{m}: {c}" for m, c in n["yield"].items()),
+         f"too many {n['too_many']}"),
+        (f"mix (advisory, not rejecting): would fail for {n['mix_would_fail']} of {n['passed']} gate_passed"
+         f"   (too few obvious {n['too_few_obvious']}, too few obscure {n['too_few_obscure']}, over all generated)"),
+        ("yield (size) at min answers  " + "   ".join(f"{m}: {c}" for m, c in n["yield"].items())
+         + "   (of which mix would pass: " + ", ".join(f"{m}: {c}" for m, c in n["yield_mix"].items()) + ")"),
         (f"answers in passing prompts {n['answers']}   weak_stint {n['weak']} ({pct(n['weak'], n['answers'])})"
          f"   edge_season {n['edge']} ({pct(n['edge'], n['answers'])})"),
     ]
@@ -191,13 +204,13 @@ def print_report(conn: psycopg.Connection, competition_qid: str, tunables: dict,
         print(f"\nReview files written to {out}")
 
 
-def write_review_files(data: Data, numbers: dict, today: date | None = None) -> Path:
-    out = REVIEW_DIR / (today or date.today()).isoformat()
+def write_review_files(data: Data, numbers: dict, review_dir: Path = REVIEW_DIR, today: date | None = None) -> Path:
+    out = review_dir / (today or date.today()).isoformat()
     out.mkdir(parents=True, exist_ok=True)
     for template_id in TEMPLATES:
         lines = [f"# {template_id}", ""]
         for p in data.passing(template_id):
-            lines += [f"## {p['text']}", "", f"{p['answer_count']} answers", "",
+            lines += [f"## {p['text']}", "", f"{p['answer_count']} answers   {mix_line(p['gate_results'])}", "",
                       "| name | views | flags | evidence |", "|---|---:|---|---|"]
             for a in p["answers"]:
                 # Duplicate facts (e.g. two identical Wikidata statements) render once.
