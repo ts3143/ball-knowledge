@@ -13,7 +13,18 @@ from psycopg.rows import dict_row
 
 from prompts.templates import TEMPLATES
 
+from .calibrate import (
+    all_group_stats,
+    gut_report,
+    load_aliases,
+    parse_sweep,
+    print_summary,
+    rate_all,
+    read_gut,
+    sweep,
+)
 from .features import AnswerSet, Features, compute_features, load_evidence
+from .model import ModelParams
 
 CALIBRATION_DIR = Path(__file__).resolve().parents[1] / "data" / "calibration"
 GUT_SHEET = CALIBRATION_DIR / "gut.toml"
@@ -39,16 +50,23 @@ class StoredPrompt:
     answer_set: AnswerSet
     flags: dict[int, list[str]]
     names: dict[int, str]
+    mix_pass: bool | None = None  # the advisory step-2 mix verdict, if it ran
 
 
 def load_prompts(cur, template_ids: list[str] | None = None, prompt_id: int | None = None,
-                 limit: int | None = None, all_statuses: bool = False) -> list[StoredPrompt]:
-    """Stored prompts (gate_passed unless all_statuses) with their answers; `limit` is per template.
+                 limit: int | None = None, all_statuses: bool = False, n_range: tuple[int, int] | None = None,
+                 ids: list[int] | None = None) -> list[StoredPrompt]:
+    """Stored prompts (gate_passed unless all_statuses) with their answers; `limit` is per template. n_range
+    keeps prompts with that many answers (inclusive) whatever their status, and ids picks prompts by id.
     `cur` must be a dict_row cursor."""
-    cur.execute("select id, template, text, club_ids from prompts"
-                " where (%s or status = 'gate_passed') and (%s::text[] is null or template = any(%s))"
-                " and (%s::bigint is null or id = %s) order by template, id",
-                (all_statuses, template_ids, template_ids, prompt_id, prompt_id))
+    lo, hi = n_range or (0, 0)
+    cur.execute("select id, template, text, club_ids, gate_results->'mix'->'pass' as mix_pass from prompts"
+                " where (%s or %s or status = 'gate_passed') and (%s::text[] is null or template = any(%s))"
+                " and (%s::bigint is null or id = %s) and (%s::bigint[] is null or id = any(%s))"
+                " and (%s or (select count(*) from prompt_answers a where a.prompt_id = prompts.id) between %s and %s)"
+                " order by template, id",
+                (all_statuses, n_range is not None, template_ids, template_ids, prompt_id, prompt_id, ids, ids,
+                 n_range is None, lo, hi))
     rows, per_template = [], Counter()
     for r in cur.fetchall():
         per_template[r["template"]] += 1
@@ -65,7 +83,8 @@ def load_prompts(cur, template_ids: list[str] | None = None, prompt_id: int | No
         answer_set=AnswerSet(r["template"], list(r["club_ids"]),
                              {a["entity_id"]: list(a["evidence_fact_ids"]) for a in answers.get(r["id"], [])}),
         flags={a["entity_id"]: list(a["flags"]) for a in answers.get(r["id"], [])},
-        names={a["entity_id"]: a["canonical_name"] for a in answers.get(r["id"], [])})
+        names={a["entity_id"]: a["canonical_name"] for a in answers.get(r["id"], [])},
+        mix_pass=r["mix_pass"])
         for r in rows]
 
 
@@ -76,14 +95,20 @@ def feature_flags(f: Features) -> list[str]:
         f"edge-{f.edge_seasons}/{f.seasons}" if f.edge_seasons else "") if x]
 
 
-def print_prompt(p: StoredPrompt, features: dict[int, Features], rows: int | None) -> None:
-    print(f"\n[{p.id}] {p.template}: {p.text}  ({len(features)} answers)")
-    print(f"  {'name':<32} {'views de':>9} {'views en':>9} {'V':>9} {'tie':>7} {'since':>6}  flags")
-    ordered = sorted(features, key=lambda e: (-features[e].fame, p.names[e]))
+def print_prompt(p: StoredPrompt, features: dict[int, Features], rated, mp: ModelParams, rows: int | None) -> None:
+    g = rated.gate
+    print(f"\n[{p.id}] {p.template}: {p.text}")
+    print(f"  {len(features)} answers · tiers {'/'.join(map(str, g['tier_counts']))} · top {100 * g['top_share']:.1f}% · "
+          f"n_eff {g['n_eff']:.1f} · expected {rated.expected_points:.1f} pts · tier gate "
+          f"{'pass' if g['pass'] else 'FAIL (' + '; '.join(g['reasons']) + ')'}")
+    print(f"  {'tier':<13} {'pts':>3} {'share':>6}  {'name':<32} {'views de':>9} {'views en':>9} {'tie':>7} "
+          f"{'since':>6}  flags")
+    ordered = sorted(features, key=lambda e: (-rated.scores[e], e))
     for e in ordered[:rows]:
         f = features[e]
         flags = p.flags[e] + feature_flags(f)
-        print(f"  {p.names[e][:32]:<32} {f.views_de:>9} {f.views_en:>9} {f.fame:>9.0f} {f.tie_amount:>7.1f} "
+        print(f"  {mp.tier_names[rated.tiers[e] - 1]:<13} {rated.points[e]:>3} {100 * rated.shares[e]:>5.1f}%  "
+              f"{p.names[e][:32]:<32} {f.views_de:>9} {f.views_en:>9} {f.tie_amount:>7.1f} "
               f"{f.seasons_since:>6.1f}  {', '.join(flags)}")
     if rows is not None and len(ordered) > rows:
         print(f"  ... {len(ordered) - rows} more")
@@ -115,18 +140,45 @@ def print_coverage(by_template: dict[str, list[Features]]) -> None:
 
 
 def preview(conn, competition_qid: str, tunables: dict, template_ids: list[str] | None, prompt_id: int | None,
-            limit: int | None, rows: int | None, summary_only: bool, all_statuses: bool) -> None:
+            limit: int | None, rows: int | None, summary_only: bool, all_statuses: bool,
+            sweep_specs: list[str] | None = None, gut: bool = False, gut_path: Path = GUT_SHEET) -> None:
+    mp = ModelParams.from_tunables(tunables)
+    grid = parse_sweep(sweep_specs) if sweep_specs else None
+    gates = tunables["quality_gates"]
     with conn.cursor(row_factory=dict_row) as cur:
-        prompts = load_prompts(cur, template_ids, prompt_id, limit, all_statuses)
+        if gut:
+            entries = read_gut(gut_path)
+            prompts = load_prompts(cur, ids=[e["id"] for e in entries if "id" in e], all_statuses=True)
+        else:
+            # every size-passing prompt at the lowest alternative minimum, whatever its stored status
+            lowest = min(gates["report_min_answers_alternatives"] + [gates["min_answers"]])
+            prompts = load_prompts(cur, template_ids, prompt_id, n_range=(lowest, gates["max_answers"]))
         ev = load_evidence(cur, [p.answer_set for p in prompts], competition_qid, tunables)
-    by_template: dict[str, list[Features]] = {}
+        aliases = load_aliases(cur, sorted({e for p in prompts for e in p.names})) if gut else {}
+    features = {p.id: compute_features(p.answer_set, ev) for p in prompts}
     print(f"{len(prompts)} prompts; reference season {ev.params.reference_season}, "
           f"ref date {ev.params.ref_date}; fame weights {ev.fame_weights}")
-    for p in prompts:
-        features = compute_features(p.answer_set, ev)
-        by_template.setdefault(p.template, []).extend(features.values())
-        if not summary_only:
-            print_prompt(p, features, rows)
+    if gut:
+        print(gut_report(entries, {r.prompt.id: r for r in rate_all(prompts, features, mp)}, aliases, mp, gut_path))
+        return
+    rated = rate_all(prompts, features, mp)
+    if grid:
+        sweep(prompts, features, tunables, mp, grid)
+        return
+    if not summary_only:
+        shown, per_template = [], Counter()
+        for r in rated:
+            if all_statuses or r.n >= gates["min_answers"]:
+                per_template[r.prompt.template] += 1
+                if limit is None or per_template[r.prompt.template] <= limit:
+                    shown.append(r)
+        for r in shown:
+            print_prompt(r.prompt, r.features, r.result, mp, rows)
+    print_summary(all_group_stats(rated, tunables, mp), tunables, mp)
+    by_template: dict[str, list[Features]] = {}
+    for r in rated:
+        if r.n >= gates["min_answers"]:
+            by_template.setdefault(r.prompt.template, []).extend(r.features.values())
     print_coverage(by_template)
 
 

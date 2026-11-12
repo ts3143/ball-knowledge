@@ -62,6 +62,7 @@ class FeatureParams:
     matches_per_season: int  # M: coach seasons -> appearance equivalents
     reference_season: int  # R
     default_seasons_since: float  # when no spell has a usable end date
+    window_start: date  # prompts say "since {start_year}": only the part of a spell from here on counts
 
     @property
     def ref_date(self) -> date:
@@ -76,6 +77,7 @@ class FeatureParams:
             edge_season_weight=f["edge_season_weight"], matches_per_season=2 * (teams - 1),
             reference_season=reference_season,
             default_seasons_since=(reference_season + 1 - tunables["ingest"]["start_year"]) / 2,
+            window_start=date(tunables["ingest"]["start_year"], 1, 1),
         )
 
 
@@ -188,9 +190,10 @@ def years_between(a: date, b: date) -> float:
     return (b - a).days / DAYS_PER_YEAR
 
 
-def spell_bounds(s: Stint, ref_date: date) -> tuple[date, date] | None:
+def spell_bounds(s: Stint, ref_date: date, window_start: date | None = None) -> tuple[date, date] | None:
     """(mid_start, mid_end) or None when the spell has no usable dates (undated, or ends with no start).
-    A current open-ended spell ends at ref_date; a weak one lasts a season; no end is after ref_date."""
+    A current open-ended spell ends at ref_date; a weak one lasts a season; no end is after ref_date.
+    With window_start, the start is clipped to it (never past the end); the end is not touched."""
     if s.date_quality == "undated" or "no_start" in s.weak_reasons:
         return None
     start = midpoint(s.earliest_start, s.latest_start)
@@ -200,12 +203,36 @@ def spell_bounds(s: Stint, ref_date: date) -> tuple[date, date] | None:
         end = start + timedelta(days=DAYS_PER_YEAR) if "open_ended" in s.weak_reasons else ref_date
     else:
         end = midpoint(s.earliest_end, s.latest_end)
-    return start, max(start, min(end, ref_date))
+    end = max(start, min(end, ref_date))
+    if window_start is not None:
+        start = min(max(start, window_start), end)
+    return start, end
 
 
-def tenure_years(s: Stint, p: FeatureParams) -> float:
-    bounds = spell_bounds(s, p.ref_date)
+def spell_end(s: Stint, ref_date: date) -> date | None:
+    """When the spell ended, for recency. Like spell_bounds, plus a no_start spell with a known end."""
+    bounds = spell_bounds(s, ref_date)
+    if bounds is not None:
+        return bounds[1]
+    if s.date_quality == "undated" or s.latest_end is None:
+        return None
+    end = midpoint(s.earliest_end, s.latest_end)
+    return None if end is None else min(end, ref_date)
+
+
+def tenure_years(s: Stint, p: FeatureParams, clip: bool = True) -> float:
+    """Years the spell lasted, at least min_spell_seasons; clip counts only the part from window_start on."""
+    bounds = spell_bounds(s, p.ref_date, p.window_start if clip else None)
     return p.min_spell_seasons if bounds is None else max(p.min_spell_seasons, years_between(*bounds))
+
+
+def window_fraction(s: Stint, p: FeatureParams) -> float:
+    """The share of the spell's tenure that falls inside the window; 1 when the dates are unusable."""
+    full = spell_bounds(s, p.ref_date)
+    if full is None or full[1] <= full[0]:
+        return 1.0
+    clipped = spell_bounds(s, p.ref_date, p.window_start)
+    return years_between(*clipped) / years_between(*full)
 
 
 def drop_duplicates(stints: list[Stint]) -> tuple[list[Stint], int]:
@@ -226,8 +253,9 @@ def drop_duplicates(stints: list[Stint]) -> tuple[list[Stint], int]:
 
 
 def apps_at(stints: list[Stint], p: FeatureParams) -> tuple[float, bool, int]:
-    """(apps, any imputed, duplicates dropped) over one club's player spells. Null apps are imputed from the
-    spell's tenure; zero apps stay zero."""
+    """(apps, any imputed, duplicates dropped) over one club's player spells, counting the part of each spell
+    inside the window: apps are pro-rated by the in-window fraction of the tenure. Null apps are imputed
+    from the clipped tenure; zero apps stay zero."""
     kept, dropped = drop_duplicates(stints)
     total, imputed = 0.0, False
     for s in kept:
@@ -235,24 +263,25 @@ def apps_at(stints: list[Stint], p: FeatureParams) -> tuple[float, bool, int]:
             total += p.imputed_apps_per_season * max(1.0, tenure_years(s, p))
             imputed = True
         else:
-            total += s.apps
+            total += s.apps * window_fraction(s, p)
     return total, imputed, dropped
 
 
 def seasons_since_club(stints: list[Stint], p: FeatureParams) -> tuple[float, bool]:
     """(seasons since the latest spell end, unknown). Unknown falls back to the default."""
-    ends = [b[1] for s in stints if (b := spell_bounds(s, p.ref_date)) is not None]
+    ends = [e for s in stints if (e := spell_end(s, p.ref_date)) is not None]
     if not ends:
         return p.default_seasons_since, True
     return max(0.0, years_between(max(ends), p.ref_date)), False
 
 
 def coach_tenure_years(stints: list[Stint], p: FeatureParams) -> float:
-    """Years a person coached a club: the union of the spells, each at least min_spell_seasons long, so
+    """Years a person coached a club since the window start: the union of the spells, each at least min_spell_seasons long, so
     overlapping duplicate spells (Wikidata and German Wikipedia) count once. Spells with no usable dates
     count the floor once, and only when no spell has dates."""
     floor = timedelta(days=p.min_spell_seasons * DAYS_PER_YEAR)
-    spans = sorted((b[0], max(b[1], b[0] + floor)) for s in stints if (b := spell_bounds(s, p.ref_date)))
+    spans = sorted((b[0], max(b[1], b[0] + floor)) for s in stints
+                   if (b := spell_bounds(s, p.ref_date, p.window_start)))
     if not spans:
         return p.min_spell_seasons if stints else 0.0
     total, (cur_start, cur_end) = timedelta(0), spans[0]
@@ -306,9 +335,10 @@ def season_sum(rows: list[SeasonRow], ev: Evidence, per_season) -> SeasonSum:
 
 
 def apps_per_season(s: Stint, p: FeatureParams) -> tuple[float, bool]:
+    """The rate over the whole spell: the seasons counted are already in the data, so no clipping."""
     if s.apps is None:
         return p.imputed_apps_per_season, True
-    return s.apps / max(1.0, tenure_years(s, p)), False
+    return s.apps / max(1.0, tenure_years(s, p, clip=False)), False
 
 
 # ---------------------------------------------------------------------------

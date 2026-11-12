@@ -19,14 +19,16 @@ from rarity.features import (
     midpoint,
     seasons_since_club,
     spell_bounds,
+    spell_end,
     tenure_years,
     usable_season_rows,
+    window_fraction,
 )
 from rarity.preview import StoredPrompt, coverage_line, render_gut_sheet, select_for_gut_sheet
 
 # Reference season 2025: ref date 2026-06-30. M = 2 * (18 - 1) = 34.
 P = FeatureParams(min_spell_seasons=0.5, imputed_apps_per_season=16, edge_season_weight=0.5,
-                  matches_per_season=34, reference_season=2025, default_seasons_since=13.0)
+                  matches_per_season=34, reference_season=2025, default_seasons_since=13.0, window_start=date(2000, 1, 1))
 A, B = 1, 2  # club ids
 
 
@@ -292,3 +294,49 @@ def test_coverage_line_counts_the_diagnostics():
     line = coverage_line("x", fs)
     assert "no views      1 (50.0%)" in line and "apps imputed      1" in line
     assert "dups dropped 2 (in 1 answers)" in line and "25.0% of 4 seasons" in line
+
+
+def test_spells_are_clipped_to_the_window():
+    s = stint(start=1998, end=2004, apps=120)  # 6 years; 4 inside 2000-
+    start, end = spell_bounds(s, P.ref_date, P.window_start)
+    assert start == date(2000, 1, 1) and end.year == 2004
+    assert tenure_years(s, P) == pytest.approx(4.5, abs=0.1)
+    assert tenure_years(s, P, clip=False) == pytest.approx(6.0, abs=0.1)
+    assert window_fraction(s, P) == pytest.approx(0.75, abs=0.02)
+    assert window_fraction(stint(start=2005, end=2007), P) == 1.0
+    # a spell that ended before the window never gets a start after its end
+    assert tenure_years(stint(start=1990, end=1995), P) == 0.5
+
+
+def test_apps_are_pro_rated_by_the_in_window_fraction_and_imputed_apps_use_the_clipped_tenure():
+    s = stint(start=1998, end=2004, apps=120)
+    assert apps_at([s], P)[0] == pytest.approx(120 * 0.75, abs=2.5)
+    imputed, flagged, _ = apps_at([stint(start=1998, end=2004, apps=None)], P)
+    assert flagged and imputed == pytest.approx(16 * 4.5, abs=2.0)
+
+
+def test_coach_tenure_counts_only_the_window():
+    # 1998-2004 is about 4.5 seasons by its midpoints (mid 1998-07 to mid 2004-07 is 6; clipped to 2000-01 is 4.5)
+    s = stint(start=1998, end=2004, apps=None)
+    assert coach_tenure_years([s], P) == pytest.approx(4.5, abs=0.1)
+    f = compute_features(AnswerSet("club_coaches", [A], {7: [1]}), evidence([s]))[7]
+    assert f.tie_amount == pytest.approx(4.5 * 34, abs=4)
+
+
+def test_season_templates_use_the_rate_of_the_whole_spell():
+    s = stint(1, start=1998, end=2004, apps=120)  # 20 a season, whatever the window
+    f = compute_features(AnswerSet("bundesliga_nationality", [], {7: [1]}), evidence([s], rows(1, A, [2000, 2001])))[7]
+    assert f.tie_amount == pytest.approx(40.0, abs=1.0)
+
+
+def test_no_start_spell_with_a_known_end_takes_its_recency_from_that_end():
+    s = stint(start=None, end=2012, weak=["no_start"], apps=None)
+    assert spell_bounds(s, P.ref_date) is None and spell_end(s, P.ref_date).year == 2012
+    since, unknown = seasons_since_club([s], P)
+    assert not unknown and since == pytest.approx(14.0, abs=0.1)
+    # tenure and apps imputation are unchanged: the floor, imputed at one season
+    assert tenure_years(s, P) == 0.5 and apps_at([s], P) == (16, True, 0)
+    # no end at all stays unknown
+    open_end = stint(start=None, end=None, weak=["no_start"], latest_end=None, earliest_end=None)
+    assert spell_end(open_end, P.ref_date) is None
+    assert spell_end(stint(start=None, end=None, quality="undated", weak=["undated"]), P.ref_date) is None
