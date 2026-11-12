@@ -10,9 +10,13 @@ from rating.types import State
 
 
 def test_the_loader_reads_the_glicko_tunables():
+    # Tuning values change; this checks that every key loads into the right field, not what the values are.
+    raw = load_tunables()["glicko"]
     p = load_params()
-    assert (p.tau, p.volatility_epsilon, p.child_scope_initial_rd, p.game_weight) == (0.5, 0.000001, 250.0, 1.0)
-    assert p.seed.coefficients == {"log_recall_mass": 0.0} and p.seed.intercept == 1500.0 and p.seed.rd == 350.0
+    assert (p.tau, p.volatility_epsilon, p.child_scope_initial_rd, p.game_weight) == (
+        raw["tau"], raw["volatility_epsilon"], raw["child_scope_initial_rd"], raw["game_weight"])
+    seed = raw["prompt_seed"]
+    assert (p.seed.intercept, p.seed.rd, p.seed.coefficients) == (seed["intercept"], seed["rd"], seed["coefficients"])
     assert p.points_scale == 100.0
 
 
@@ -37,7 +41,8 @@ def test_the_seed_is_a_linear_map_with_an_optional_offset():
     p = golden_params()  # coefficient 40 on log_recall_mass
     assert seed_rating({"log_recall_mass": -2.0}, p.seed) == 1500.0 - 80.0
     assert seed_rating({"log_recall_mass": -2.0}, p.seed, template_offset=15.0) == 1500.0 - 65.0
-    assert seed_rating({"log_recall_mass": -2.0}, load_params().seed) == 1500.0  # zero coefficients: the intercept
+    zero = Params.from_dict({**p.to_dict(), "seed": {**p.to_dict()["seed"], "coefficients": {"log_recall_mass": 0.0}}})
+    assert seed_rating({"log_recall_mass": -2.0}, zero.seed) == 1500.0  # zero coefficients: the intercept
     assert seed_rd(p.seed) == 350.0
     with pytest.raises(KeyError):
         seed_rating({}, p.seed)

@@ -117,29 +117,37 @@ completeness_expected_answers = 20
 initial_rating = 1500
 initial_rd = 350
 initial_volatility = 0.06
-# Volatility constraint. Glickman suggests 0.3 to 1.2; smaller keeps volatility steadier. The sim tunes it
-# (step 4, chunk 4).
+# Volatility constraint. Glickman suggests 0.3 to 1.2; smaller keeps volatility steadier. The step-4 sweep
+# found it barely matters (0.2-1.2 change rank recovery in the 4th decimal); kept at 0.5.
 tau = 0.5
 # Convergence tolerance of the volatility step (Illinois algorithm); more than 100 iterations is an error.
 volatility_epsilon = 0.000001
-# RD a new child scope (a club) starts with, unless its parent's RD is higher. Tuned in the sim (chunk 4).
+# RD a new child scope (a club) starts with, unless its parent's RD is higher. The step-4 sweep found no
+# measurable effect between 150 and 350; kept at 250.
 child_scope_initial_rd = 250
 # Weight of one game in a period: v = 1 / sum(w g^2 E (1-E)), delta = v * sum(w g (s - E)). 1.0 is standard
-# Glicko-2; fractional results carry less information than a win/loss, so the sim may prefer more (chunk 4).
+# Glicko-2. T (2026-11-12) kept 1.0: the sweep's calibrated 4.0 sizes RD right but ranks slightly worse and
+# weakens the uncertain marker; at 1.0 RD runs about 2x cautious (newcomers stay "uncertain" a little longer).
 game_weight = 1.0
+# At game_weight 1.0, players above this RD are misplaced about 9x as often as settled ones (step-4 sim).
+# Re-tune it if game_weight changes.
 uncertain_rd_threshold = 110
-club_rating_min_prompts = 20
+# T (2026-11-12): 10, from the step-4 sim. At ~18 prompts per club in two months, 97% of daily fans see their
+# club rating (median day 28, rank accuracy 0.90); at 20 only half would. Shown with the uncertain marker.
+club_rating_min_prompts = 10
 prompt_lock_answers = 200
 # irt_refit_min_rated_answers = 1000 (later, not first build)
 
-# A prompt's starting rating: seed_rating = intercept + sum(coefficient_k * feature_k) (+ a template offset the
-# sim may add). The features are frozen in prompts.rarity at approval. The values below carry no information
-# (all coefficients 0); the sim fits them against its simulated world (chunk 3) and they are approved in chunk 4.
+# A prompt's starting rating: seed_rating = intercept + sum(coefficient_k * feature_k) (+ per-template offsets,
+# none fitted). Features are frozen in prompts.rarity at approval: log_recall_mass, and ln_n_eff = ln of
+# gate_results.tiers.n_eff. Fitted in the step-4 sim (leave-one-template-out CV RMSE 21, 23 in the model-wrong
+# world) and approved by T on 2026-11-12. Refit from real results once there are enough.
 [glicko.prompt_seed]
-intercept = 1500
-# RD of a fresh prompt rating: how far the seed may be off. The sim sets it from its cross-validated error.
-rd = 350
-coefficients = { log_recall_mass = 0.0 }
+intercept = 2476.79
+# RD of a fresh prompt rating: how far the seed may be off. CV error is ~23; the floor of 60 is a hedge for
+# the simulation not being the real world.
+rd = 60
+coefficients = { log_recall_mass = -71.0242, ln_n_eff = 36.3276 }
 
 # ---------------------------------------------------------------------------
 # LLM

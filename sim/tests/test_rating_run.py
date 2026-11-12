@@ -156,9 +156,10 @@ def test_the_proposed_block_and_tunables_copy():
     p = propose(synthetic_seed_data(shift={"t2": 120.0}))
     block = tunables_block(p)
     assert block.startswith("[glicko.prompt_seed]") and "template_offsets" in block and "log_recall_mass" in block
+    original = load_tunables()["glicko"]["prompt_seed"]["intercept"]
     tun = with_seed(load_tunables(), p)
     assert tun["glicko"]["prompt_seed"]["intercept"] == p["intercept"]
-    assert load_tunables()["glicko"]["prompt_seed"]["intercept"] == 1500  # the original is untouched
+    assert load_tunables()["glicko"]["prompt_seed"]["intercept"] == original  # the file on disk is untouched
     assert set(FEATURES) >= set(p["coefficients"])
 
 
