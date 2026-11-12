@@ -13,6 +13,7 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
 from ingest.console import log
+from rarity.features import latest_season
 
 from . import gates
 from .templates import TEMPLATES, Template
@@ -69,12 +70,8 @@ def params_key(params: dict) -> str:
 def current_from_year(cur, competition_id: int, competition_qid: str, tunables: dict) -> int:
     """Open-ended spells from this season on are current, not weak: the latest season in the data
     minus the tunable window (rendered as a literal into each stored answer_query)."""
-    cur.execute("select max(season_start_year) as y from club_seasons where competition_id = %s",
-                (competition_id,))
-    latest_season = cur.fetchone()["y"]  # a dict_row cursor
-    if latest_season is None:
-        raise SystemExit(f"No seasons for {competition_qid}; run the ingest first.")
-    return latest_season - (tunables["prompts"]["open_ended_current_seasons"] - 1)
+    latest = latest_season(cur, competition_id, competition_qid)
+    return latest - (tunables["prompts"]["open_ended_current_seasons"] - 1)
 
 
 def generate(conn: psycopg.Connection, competition_qid: str, tunables: dict,

@@ -54,3 +54,6 @@ Thumbs.db
 CLAUDE.md
 docs/DESIGN.md
 pipeline/data/review/
+
+# Calibration sheets T fills in by hand (rarity gut-sheet)
+pipeline/data/calibration/

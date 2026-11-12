@@ -25,6 +25,28 @@ hipster_pick_points = 15
 prior_weight_picks = 50
 # hipster_auto_flag_ratio = TBD (step 3) — observed share ≫ predicted
 
+# Obviousness features (step 3). Fame is V = w_de * pageviews_de + w_en * pageviews_en, summed over all
+# months, with per-competition weights keyed by the competition's Wikidata QID. English Wikipedia has about
+# 2.6x the person views of German Wikipedia, so en 0.4 gives the two editions roughly equal weight.
+# T (2026-11-11): testers are mixed / international, so both editions count.
+[rarity.fame_weights.Q82595]  # Bundesliga
+de = 1.0
+en = 0.4
+
+[rarity.features]
+# Shortest tenure a spell counts for, in seasons: a caretaker coach or a loan still tied a person to the club.
+min_spell_seasons = 0.5
+# Appearances per season assumed when a spell has no appearance count (null, not zero). Measured 2026-11-11:
+# the median of apps / years for dated spells that have apps is 16.3.
+imputed_apps_per_season = 16
+# A (club, season) pair that every spell only touches at its edge (a mid-season move) counts for this much.
+edge_season_weight = 0.5
+
+[rarity.calibration]
+# `rarity gut-sheet`: passing prompts picked per template (all of them if there are fewer), and the seed.
+gut_sheet_prompts_per_template = 2
+gut_sheet_seed = 7
+
 # ---------------------------------------------------------------------------
 # Prompt generation (step 2)
 # ---------------------------------------------------------------------------
