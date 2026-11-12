@@ -32,6 +32,19 @@ prior_weight_picks = 50
 # An open-ended spell that started within this many of the latest competition seasons in the data
 # counts as current (not weak). 2 with a latest season of 2025-26 means start_year >= 2024.
 open_ended_current_seasons = 2
+# Countries that never become a prompt parameter. T (2026-11-11): no former states for now. These are
+# the countries in our data that Wikidata marks as dissolved (P576), checked 2026-11-11.
+excluded_countries = [
+  "Q16957",     # East Germany
+  "Q33946",     # Czechoslovakia
+  "Q15180",     # Soviet Union
+  "Q83286",     # Socialist Federal Republic of Yugoslavia
+  "Q37024",     # Serbia and Montenegro
+  "Q713750",    # West Germany
+  "Q838261",    # Federal Republic of Yugoslavia
+  "Q36704",     # Yugoslavia
+  "Q107258515", # Pahlavi Iran
+]
 
 # ---------------------------------------------------------------------------
 # Prompt quality gates (step 2)

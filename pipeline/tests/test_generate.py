@@ -173,6 +173,20 @@ def test_evidence_lists_the_stint_facts(world):
     assert answers[p1["id"]]["evidence_fact_ids"] == [fa, fb]
 
 
+def test_excluded_countries_never_become_a_parameter(world):
+    w = world
+    former = w.entity("country", "Former Country")
+    p = w.person("Citizen")
+    w.stint(p, "A")
+    w.fact(p["id"], "nationality", w.country["id"])
+    w.fact(p["id"], "nationality", former["id"])
+    w.run("club_nationality", "bundesliga_nationality",
+          prompts={**TUNABLES["prompts"], "excluded_countries": [former["wikidata_id"]]})
+    for template in ("club_nationality", "bundesliga_nationality"):
+        countries = {r["params"]["country"] for r in w.prompts(template)}
+        assert countries == {w.country["wikidata_id"]}, template
+
+
 def test_club_nationality_joins_citizenship_and_club(world):
     w = world
     citizen, weak_citizen, other = w.person("Citizen"), w.person("WeakCitizen"), w.person("Other")

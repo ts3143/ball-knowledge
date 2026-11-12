@@ -92,7 +92,8 @@ def generate(conn: psycopg.Connection, competition_qid: str, tunables: dict,
 
         ctx = {"competition": competition_qid,
                "teams_per_season": tunables["ingest"]["coverage"]["teams_per_season"],
-               "current_from_year": current_from_year(cur, comp["id"], competition_qid, tunables)}
+               "current_from_year": current_from_year(cur, comp["id"], competition_qid, tunables),
+               "excluded_countries": list(tunables["prompts"].get("excluded_countries", []))}
         wording_ctx = {"start_year": tunables["ingest"]["start_year"], "competition": comp["canonical_name"]}
         quality_gates = tunables["quality_gates"]
 
