@@ -29,8 +29,8 @@ class Generated:
     club_ids: list[int]
     answer_query: str
     answers: dict[int, tuple[list[int], list[str]]]  # entity_id -> (evidence_fact_ids, flags)
-    gate_results: dict
-    status: str
+    gate_results: dict = field(default_factory=dict)  # set by _apply_gates
+    status: str = "candidate"
 
     @property
     def key(self) -> tuple[str, str]:
@@ -51,6 +51,9 @@ class Stats:
     gate_passed: int = 0
     too_few: int = 0
     too_many: int = 0
+    too_few_obvious: int = 0
+    too_few_obscure: int = 0
+    size_passed: int = 0
     pass_at_min: dict[int, int] = field(default_factory=dict)
     inserted: int = 0
     updated: int = 0
@@ -65,10 +68,21 @@ def params_key(params: dict) -> str:
     return json.dumps(params, sort_keys=True)
 
 
+def current_from_year(cur, competition_id: int, competition_qid: str, tunables: dict) -> int:
+    """Open-ended spells from this season on are current, not weak: the latest season in the data
+    minus the tunable window (rendered as a literal into each stored answer_query)."""
+    cur.execute("select max(season_start_year) as y from club_seasons where competition_id = %s",
+                (competition_id,))
+    latest_season = cur.fetchone()["y"]  # a dict_row cursor
+    if latest_season is None:
+        raise SystemExit(f"No seasons for {competition_qid}; run the ingest first.")
+    return latest_season - (tunables["prompts"]["open_ended_current_seasons"] - 1)
+
+
 def generate(conn: psycopg.Connection, competition_qid: str, tunables: dict,
              template_ids: list[str] | None = None, dry_run: bool = False) -> dict[str, Stats]:
     """Runs the templates against the database behind `conn`; returns stats per template id."""
-    templates = [TEMPLATES[t] for t in (template_ids or TEMPLATES)]
+    stored = [TEMPLATES[t] for t in (template_ids or TEMPLATES)]
     with conn.transaction(force_rollback=dry_run), conn.cursor(row_factory=dict_row) as cur:
         cur.execute("select id, canonical_name from entities where wikidata_id = %s and type = 'competition'",
                     (competition_qid,))
@@ -78,30 +92,25 @@ def generate(conn: psycopg.Connection, competition_qid: str, tunables: dict,
         cur.execute("select max(last_seen_at) as t from facts")
         facts_as_of = cur.fetchone()["t"]
 
-        # Open-ended spells from this season on are current, not weak: the latest season in the data
-        # minus the tunable window (rendered as a literal into each stored answer_query).
-        cur.execute("select max(season_start_year) as y from club_seasons where competition_id = %s",
-                    (comp["id"],))
-        latest_season = cur.fetchone()["y"]
-        if latest_season is None:
-            raise SystemExit(f"No seasons for {competition_qid}; run the ingest first.")
         ctx = {"competition": competition_qid,
                "teams_per_season": tunables["ingest"]["coverage"]["teams_per_season"],
-               "current_from_year": latest_season - (tunables["prompts"]["open_ended_current_seasons"] - 1)}
+               "current_from_year": current_from_year(cur, comp["id"], competition_qid, tunables)}
         wording_ctx = {"start_year": tunables["ingest"]["start_year"], "competition": comp["canonical_name"]}
         quality_gates = tunables["quality_gates"]
 
-        stats = {}
-        for template in templates:
+        # The mix gate's quantiles span every template's answer sets, so all templates are always
+        # evaluated; --template only limits what is stored.
+        by_template = {}
+        for template in TEMPLATES.values():
             log(f"{template.id}: enumerating params")
-            generated = _generate_template(conn, cur, template, ctx, wording_ctx, quality_gates)
-            log(f"{template.id}: {len(generated)} prompts")
-            stats[template.id] = _store(cur, template, comp["id"], generated, facts_as_of, quality_gates)
-    return stats
+            by_template[template.id] = _generate_template(conn, cur, template, ctx, wording_ctx)
+            log(f"{template.id}: {len(by_template[template.id])} prompts")
+        _apply_gates([g for gs in by_template.values() for g in gs], cur, quality_gates)
+
+        return {t.id: _store(cur, t, comp["id"], by_template[t.id], facts_as_of, quality_gates) for t in stored}
 
 
-def _generate_template(conn, cur, template: Template, ctx: dict, wording_ctx: dict,
-                       quality_gates: dict) -> list[Generated]:
+def _generate_template(conn, cur, template: Template, ctx: dict, wording_ctx: dict) -> list[Generated]:
     renderer = psycopg.ClientCursor(conn)
     cur.execute(renderer.mogrify(template.params_sql, ctx))
     param_sets = cur.fetchall()
@@ -118,25 +127,46 @@ def _generate_template(conn, cur, template: Template, ctx: dict, wording_ctx: di
         answer_query = renderer.mogrify(template.answers_sql, {**ctx, **params})
         cur.execute(answer_query)
         answers = {r["entity_id"]: (r["evidence_fact_ids"], r["flags"]) for r in cur.fetchall()}
-        results = gates.gate_results(len(answers), quality_gates)
         out.append(Generated(
             template=template, params=dict(params), text=text,
             club_ids=[entities[params[k]]["id"] for k in template.club_params],
-            answer_query=answer_query, answers=answers, gate_results=results, status=gates.status(results),
+            answer_query=answer_query, answers=answers,
         ))
     return out
+
+
+def _apply_gates(generated: list[Generated], cur, quality_gates: dict) -> None:
+    """Size and mix gates. Fame is the entity's total de+en pageviews; the mix cutoffs are quantiles
+    over all entities of the same type that appear in any answer set."""
+    ids = {e for g in generated for e in g.answers}
+    cur.execute("select e.id, e.type::text as type, coalesce(sum(v.views), 0)::bigint as fame from entities e"
+                " left join entity_pageviews v on v.entity_id = e.id where e.id = any(%s) group by e.id",
+                (list(ids),))
+    rows = cur.fetchall()
+    fame = {r["id"]: r["fame"] for r in rows}
+    cutoffs = {t: gates.fame_cutoffs([r["fame"] for r in rows if r["type"] == t], quality_gates)
+               for t in {r["type"] for r in rows}}
+    for g in generated:
+        mix = gates.mix_gate([fame[e] for e in g.answers], cutoffs.get(g.template.answer_type, (0, 0)),
+                             quality_gates)
+        g.gate_results = gates.gate_results(len(g.answers), quality_gates, mix)
+        g.status = gates.status(g.gate_results)
 
 
 def _store(cur, template: Template, competition_id: int, generated: list[Generated], facts_as_of,
            quality_gates: dict) -> Stats:
     stats = Stats(generated=len(generated))
     for g in generated:
-        size = g.gate_results["size"]
+        size, mix = g.gate_results["size"], g.gate_results["mix"]
         stats.gate_passed += g.status == "gate_passed"
+        stats.size_passed += size["pass"]
         stats.too_few += size["n"] < size["min"]
         stats.too_many += size["n"] > size["max"]
+        stats.too_few_obvious += mix["obvious"] < mix["min_obvious"]
+        stats.too_few_obscure += mix["obscure"] < mix["min_obscure"]
     for alt in quality_gates["report_min_answers_alternatives"]:
-        stats.pass_at_min[alt] = sum(alt <= len(g.answers) <= quality_gates["max_answers"] for g in generated)
+        stats.pass_at_min[alt] = sum(alt <= len(g.answers) <= quality_gates["max_answers"]
+                                     and g.gate_results["mix"]["pass"] for g in generated)
 
     cur.execute("select id, params, status, text, answer_query, club_ids, gate_results, answer_count"
                 " from prompts where competition_id = %s and template = %s", (competition_id, template.id))
@@ -214,8 +244,10 @@ def print_summary(stats: dict[str, Stats], dry_run: bool) -> None:
     for template_id, s in stats.items():
         print(f"\n{template_id}")
         print(f"  generated {s.generated}   gate_passed {s.gate_passed}   "
-              f"failed: too few {s.too_few}, too many {s.too_many}")
-        print("  would pass at min answers  " + "   ".join(f"{m}: {n}" for m, n in s.pass_at_min.items()))
+              f"failed: too few {s.too_few}, too many {s.too_many}, "
+              f"too few obvious {s.too_few_obvious}, too few obscure {s.too_few_obscure}")
+        print(f"  passed size {s.size_passed}, of which mix removed {s.size_passed - s.gate_passed}")
+        print("  would pass (size and mix) at min answers  " + "   ".join(f"{m}: {n}" for m, n in s.pass_at_min.items()))
         print(f"  inserted {s.inserted}   updated {s.updated}   unchanged {s.unchanged}   deleted {s.deleted}")
         if s.approved or s.approved_gone:
             print(f"  approved {s.approved} (answer set differs: {len(s.approved_diffs)}, "

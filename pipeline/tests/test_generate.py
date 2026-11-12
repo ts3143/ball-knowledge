@@ -14,7 +14,9 @@ pytestmark = pytest.mark.db
 TUNABLES = {
     "prompts": {"open_ended_current_seasons": 2},
     "ingest": {"start_year": 2000, "coverage": {"teams_per_season": 3}},
-    "quality_gates": {"min_answers": 1, "max_answers": 300, "report_min_answers_alternatives": [1, 2]},
+    "quality_gates": {"min_answers": 1, "max_answers": 300, "report_min_answers_alternatives": [1, 2],
+                      "mix_obvious_quantile": 0.75, "mix_obscure_quantile": 0.5,
+                      "mix_min_obvious": 0, "mix_min_obscure": 0},
 }
 
 # Placeholder seasons (start year -> clubs): 2009 sees C relegated and D promoted, 2011 sees D relegated
@@ -366,6 +368,57 @@ def test_gate_status_and_counts(world):
     assert prompt["answer_count"] == 2
     assert (stats.generated, stats.gate_passed, stats.too_few, stats.too_many) == (1, 0, 1, 0)
     assert stats.pass_at_min == {1: 1, 2: 1}
+
+
+def add_views(w, entity, *views):
+    for i, v in enumerate(views):
+        w.cur.execute("insert into entity_pageviews (entity_id, wiki, month, views) values (%s, %s, %s, %s)",
+                      (entity["id"], "de" if i % 2 else "en", date(2024, 1 + i // 2, 1), v))
+
+
+def test_mix_gate_quantiles_are_per_entity_type_over_all_answer_sets(world):
+    w = world
+    gates = {**TUNABLES["quality_gates"], "mix_min_obvious": 2, "mix_min_obscure": 1}
+    # Club A coaches' views (split over de and en rows, so they are summed); club B's coaches have none.
+    for name, views in zip("012345", [(0,), (4, 6), (20,), (10, 20), (40,), (20, 30)]):
+        coach = w.person(f"Coach A{name}")
+        w.stint(coach, "A", predicate="coached")
+        if views != (0,):
+            add_views(w, coach, *views)
+    for i in range(3):
+        w.stint(w.person(f"Coach B{i}"), "B", predicate="coached")
+    # Club views are huge but must not move the person cutoffs; C (100) and D (none) are the relegated clubs.
+    add_views(w, w.clubs["C"], 100)
+    add_views(w, w.clubs["A"], 10_000_000)
+    w.run("club_coaches", "relegated_clubs", quality_gates=gates)
+
+    # Persons: fames 0,0,0,0,10,20,30,40,50 -> obvious cutoff (q 0.75) 30, obscure cutoff (q 0.5) 10.
+    a = w.only("club_coaches", club=w.clubs["A"]["wikidata_id"])
+    b = w.only("club_coaches", club=w.clubs["B"]["wikidata_id"])
+    assert a["gate_results"]["mix"] == {"obvious": 3, "obscure": 1, "min_obvious": 2, "min_obscure": 1,
+                                        "pass": True}
+    assert b["gate_results"]["mix"] == {"obvious": 0, "obscure": 3, "min_obvious": 2, "min_obscure": 1,
+                                        "pass": False}
+    assert (a["status"], b["status"]) == ("gate_passed", "gate_failed")
+    # Clubs: fames 0 and 100 -> cutoffs 75 and 50.
+    [relegated] = w.prompts("relegated_clubs")
+    assert relegated["gate_results"]["mix"]["obvious"] == 1
+    assert relegated["gate_results"]["mix"]["obscure"] == 1
+
+
+def test_template_filter_does_not_change_the_cutoffs(world):
+    w = world
+    for i in range(4):
+        coach = w.person(f"Coach {i}")
+        w.stint(coach, "A", predicate="coached")
+        if i:
+            add_views(w, coach, 10 * i)
+    w.stint(w.person("Other"), "B", predicate="coached")
+    gates = {**TUNABLES["quality_gates"], "mix_min_obvious": 1}
+    w.run("club_coaches", quality_gates=gates)
+    only_one = [p["gate_results"] for p in w.prompts("club_coaches")]
+    w.run(quality_gates=gates)
+    assert [p["gate_results"] for p in w.prompts("club_coaches")] == only_one
 
 
 def test_second_run_changes_nothing(world):

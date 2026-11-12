@@ -37,10 +37,21 @@ open_ended_current_seasons = 2
 # Prompt quality gates (step 2)
 # ---------------------------------------------------------------------------
 [quality_gates]
-min_answers = 15
+# T: leaning 12, revisit later. Bayern + Dortmund has 12 answers.
+min_answers = 12
 max_answers = 300
-# The generation summary also shows how many prompts would pass at each of these minimums.
+# The report shows how many prompts would pass (size and mix) at each of these minimums.
 report_min_answers_alternatives = [10, 12, 15]
+# Mix gate: a provisional proxy on Wikipedia pageviews (de+en, all months) that step 3's obviousness
+# score replaces. Quantiles are global per entity type, over every entity in any generated answer set.
+# Obvious = views at or above the obvious quantile; obscure = below the obscure quantile or no pageviews.
+mix_obvious_quantile = 0.75
+mix_obscure_quantile = 0.5
+mix_min_obvious = 3
+mix_min_obscure = 3
+# Report: passing prompts sampled per template, and the sampling seed.
+report_sample_per_template = 3
+report_sample_seed = 7
 completeness_expected_answers = 20
 
 # ---------------------------------------------------------------------------

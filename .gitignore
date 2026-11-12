@@ -53,3 +53,4 @@ Thumbs.db
 # Private planning docs (kept local, never pushed)
 CLAUDE.md
 docs/DESIGN.md
+pipeline/data/review/
