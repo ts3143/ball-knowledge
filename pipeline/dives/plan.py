@@ -47,6 +47,7 @@ class Plan:
     unscheduled: list[date] = field(default_factory=list)  # wanted dates that got no dive: the pool ran dry
     notes: list[str] = field(default_factory=list)  # prompts left out of the pool and why
     pool_left: int = 0
+    auto_approved: set[int] = field(default_factory=set)  # gate_passed prompts the plan approves
 
 
 def load_competition(cur, tunables: dict, slug: str) -> Competition:
@@ -61,13 +62,20 @@ def load_competition(cur, tunables: dict, slug: str) -> Competition:
     return Competition(row["id"], slug, c["name"], c["sport"])
 
 
-def load_pool(cur, comp: Competition, tunables: dict) -> tuple[list[Candidate], dict[int, str], list[str]]:
-    """Approved prompts of the competition that no dive uses, with their seed difficulty; also their texts and
-    notes on prompts skipped because they cannot be seeded."""
-    cur.execute("select id, template, text, club_ids, rarity, gate_results from prompts p"
-                " where status = 'approved' and competition_id = %s"
-                " and not exists (select 1 from dive_prompts d where d.prompt_id = p.id) order by id", (comp.id,))
-    pool, texts, notes = [], {}, []
+AUTO_APPROVE_NOTE = "auto-approved at scheduling"
+
+
+def load_pool(cur, comp: Competition, tunables: dict) -> tuple[list[Candidate], dict[int, str], list[str], set[int]]:
+    """Prompts of the competition that no dive uses, with their seed difficulty: the approved ones, and with
+    [scheduler].auto_approve the gate_passed ones too (never rejected or gate_failed). Also their texts, notes on
+    prompts skipped because they cannot be seeded, and the ids of the gate_passed prompts in the pool, which
+    scheduling would approve."""
+    statuses = ["approved", "gate_passed"] if tunables["scheduler"].get("auto_approve", False) else ["approved"]
+    cur.execute("select id, template, text, club_ids, rarity, gate_results, status from prompts p"
+                " where status = any(%s) and competition_id = %s"
+                " and not exists (select 1 from dive_prompts d where d.prompt_id = p.id) order by id",
+                (statuses, comp.id))
+    pool, texts, notes, pending = [], {}, [], set()
     for r in cur.fetchall():
         seed = seed_difficulty(tunables, r["rarity"], r["gate_results"])
         if seed is None:
@@ -75,11 +83,19 @@ def load_pool(cur, comp: Competition, tunables: dict) -> tuple[list[Candidate], 
             continue
         pool.append(Candidate(r["id"], r["template"], tuple(r["club_ids"]), seed))
         texts[r["id"]] = r["text"]
-    return pool, texts, notes
+        if r["status"] == "gate_passed":
+            pending.add(r["id"])
+    return pool, texts, notes, pending
 
 
 def _insert_dive(cur, comp: Competition, day: date, opens_at: datetime, closes_at: datetime, is_test: bool,
-                 picked: Picked) -> int:
+                 picked: Picked, pending: set[int]) -> int:
+    """Writes the dive. A gate_passed prompt is approved first (scheduling is publishing, and the dive_prompts
+    guard wants approved prompts)."""
+    auto = [c.id for c in picked.candidates if c.id in pending]
+    if auto:
+        cur.execute("update prompts set status = 'approved', reviewed_at = now(), review_note = %s,"
+                    " updated_at = now() where id = any(%s) and status = 'gate_passed'", (AUTO_APPROVE_NOTE, auto))
     cur.execute("insert into dives (competition_id, sport, dive_date, opens_at, closes_at, is_test)"
                 " values (%s, %s, %s, %s, %s, %s) returning id",
                 (comp.id, comp.sport, day, opens_at, closes_at, is_test))
@@ -102,18 +118,19 @@ def schedule(conn: psycopg.Connection, comp: Competition, tunables: dict, rules:
         have = {r["dive_date"] for r in cur.fetchall()}
         first = dive_date_at(now, rules)
         missing = [d for d in (first + timedelta(days=i) for i in range(rules.queue_days)) if d not in have]
-        pool, texts, plan.notes = load_pool(cur, comp, tunables)
+        pool, texts, plan.notes, pending = load_pool(cur, comp, tunables)
         for i, day in enumerate(missing):
             picked = choose_dive(pool, rules, rng)
             if picked is None:
                 plan.unscheduled = missing[i:]
                 break
             opens_at, closes_at = window(day, rules)
-            dive_id = _insert_dive(cur, comp, day, opens_at, closes_at, False, picked)  # rolled back in a dry run
+            dive_id = _insert_dive(cur, comp, day, opens_at, closes_at, False, picked, pending)  # rolled back in a dry run
             plan.dives.append(PlannedDive(None if dry_run else dive_id, day, opens_at, closes_at, False, picked))
             used = {c.id for c in picked.candidates}
             pool = [c for c in pool if c.id not in used]
             plan.texts.update({c.id: texts[c.id] for c in picked.candidates})
+            plan.auto_approved |= used & pending
             plan.templates.update({c.id: c.template for c in picked.candidates})
         plan.pool_left = len(pool)
     return plan
@@ -135,14 +152,15 @@ def open_now(conn: psycopg.Connection, comp: Competition, tunables: dict, rules:
         day = next_test_date({r["dive_date"] for r in cur.fetchall()}, rules)
         if day is None:
             raise DiveError(f"the test date range {rules.test_date_start}..{rules.test_date_end} is full")
-        pool, texts, plan.notes = load_pool(cur, comp, tunables)
+        pool, texts, plan.notes, pending = load_pool(cur, comp, tunables)
         picked = choose_dive(pool, rules, rng)
         if picked is None:
             raise DiveError(not_enough_message(comp, len(pool), rules, 1))
         closes_at = now + timedelta(minutes=minutes)
-        dive_id = _insert_dive(cur, comp, day, now, closes_at, True, picked)
+        dive_id = _insert_dive(cur, comp, day, now, closes_at, True, picked, pending)
         plan.dives.append(PlannedDive(dive_id, day, now, closes_at, True, picked))
         plan.texts = {c.id: texts[c.id] for c in picked.candidates}
+        plan.auto_approved = {c.id for c in picked.candidates} & pending
         plan.templates = {c.id: c.template for c in picked.candidates}
         plan.pool_left = len(pool) - len(picked.candidates)
     return plan
@@ -150,10 +168,11 @@ def open_now(conn: psycopg.Connection, comp: Competition, tunables: dict, rules:
 
 def not_enough_message(comp: Competition, pool_size: int, rules: DiveRules, dives_wanted: int) -> str:
     need = rules.prompts_per_dive * dives_wanted
-    return (f"No dive can be made for {comp.name}: {pool_size} approved prompt{'s' if pool_size != 1 else ''} "
+    return (f"No dive can be made for {comp.name}: {pool_size} usable prompt{'s' if pool_size != 1 else ''} "
             f"not used in any dive, and a dive needs {rules.prompts_per_dive} ({need} for {dives_wanted} "
             f"date{'s' if dives_wanted != 1 else ''}).\n"
-            f"Approve more with `python -m prompts review`.")
+            f"Usable = approved, or gate_passed when [scheduler].auto_approve is on. Run `python -m prompts "
+            f"generate {comp.slug}` for more.")
 
 
 def unschedule(conn: psycopg.Connection, comp: Competition, day: date, now: datetime | None = None) -> int:
@@ -218,6 +237,8 @@ def purge_test(conn: psycopg.Connection, comp: Competition, dates: list[date] | 
 
         prompts = "select prompt_id from dive_prompts where dive_id = any(%s)"
         attempts = "select id from attempts where dive_id = any(%s)"
+        cur.execute(f"select p.id from prompts p where p.id in ({prompts}) and p.review_note = %s", (ids, AUTO_APPROVE_NOTE))
+        auto = [x["id"] for x in cur.fetchall()]
         cur.execute("select distinct user_id from attempts where dive_id = any(%s)", (ids,))
         users = [r["user_id"] for r in cur.fetchall()]
         counts = {"dives": len(ids)}
@@ -231,6 +252,10 @@ def purge_test(conn: psycopg.Connection, comp: Competition, dates: list[date] | 
         run("delete from attempts where dive_id = any(%s)", ids)
         counts["prompt_ratings"] = run(f"delete from prompt_ratings where prompt_id in ({prompts})", ids)
         run("delete from dives where id = any(%s)", ids)
+        # prompts the scheduler approved go back to gate_passed; prompts T approved by hand stay approved
+        counts["back_to_gate_passed"] = run(
+            "update prompts set status = 'gate_passed', reviewed_at = null, review_note = null, updated_at = now()"
+            " where id = any(%s) and status = 'approved' and review_note = %s", auto, AUTO_APPROVE_NOTE)
         counts["users"] = len(users)
         counts["ratings"] = run("delete from ratings where user_id = any(%s)", users)
         cur.execute("insert into test_purges (dive_dates, counts) values (%s, %s)",

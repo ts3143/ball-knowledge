@@ -1,4 +1,5 @@
-"""T's approval of prompts (hard rule 7: T approves every prompt before it ships).
+"""Optional manual review of prompts. Prompts ship without it (T, 2026-11-13: no manual approval; the scheduler
+approves a gate_passed prompt when it puts it into a dive). Use this to reject bad prompts, reword, or approve early.
 
     python -m prompts review [--template T] [--limit N]    # interactive: one prompt at a time
     python -m prompts approve 2801 2802 [--note "..."]      # non-interactive

@@ -51,6 +51,10 @@ hard_quota = 2
 # When they cannot be met, the quota is relaxed first, then these caps (with a warning).
 max_per_template = 2
 max_per_club = 2
+# T (2026-11-13): "i dont really want to do any approving, lets just use the prompts." When true, the scheduler
+# also draws from gate_passed prompts (never rejected or gate_failed) and approves each one it puts into a dive
+# (that is when it freezes). Prompts never scheduled stay gate_passed. When false, only approved prompts are used.
+auto_approve = true
 # Seeds the random choice among eligible prompts (--seed overrides it).
 seed = 7
 

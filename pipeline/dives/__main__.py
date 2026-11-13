@@ -1,6 +1,6 @@
 """Dive scheduling, run by T. Scheduling is publishing: a scheduled prompt is frozen.
 
-    uv run python -m dives schedule bundesliga                 # fill the next 7 dates from approved prompts
+    uv run python -m dives schedule bundesliga                 # fill the next 7 dates (gate_passed prompts are approved as they are scheduled)
     uv run python -m dives schedule bundesliga --dry-run       # the plan only, nothing written
     uv run python -m dives schedule bundesliga --seed 9
     uv run python -m dives status bundesliga                   # queue and runway
@@ -42,7 +42,7 @@ def main() -> None:
     sched.add_argument("competition")
     sched.add_argument("--dry-run", action="store_true", help="print the plan, write nothing")
     sched.add_argument("--seed", type=int, help="scheduler seed (default: [scheduler].seed)")
-    status = commands.add_parser("status", help="the queue and the runway of approved prompts")
+    status = commands.add_parser("status", help="the queue and the runway of usable prompts")
     status.add_argument("competition")
     unsched = commands.add_parser("unschedule", help="remove a dive that has not opened and has no attempts")
     unsched.add_argument("competition")
@@ -51,10 +51,10 @@ def main() -> None:
     rq.add_argument("--limit", type=int, default=30)
     now = commands.add_parser(
         "open-now", help="TEST MODE: open a test dive right now (local database only)",
-        description="Creates a dive that opens now and closes after --minutes, from approved prompts that no dive "
+        description="Creates a dive that opens now and closes after --minutes, from prompts that no dive "
                     "uses, chosen by the same rules as `schedule`. Its date is the next free virtual date before "
                     "2000 (see [dive].test_date_start), so it never collides with a real date and is its own rating "
-                    "period. Test dives use up the approved prompts they take until you remove them with "
+                    "period. Test dives use up the prompts they take until you remove them with "
                     "`purge-test`, which deletes the dive, its attempts and answers and frees the prompts. Test "
                     "data is for the LOCAL database only: never run this against the hosted one.")
     now.add_argument("competition")

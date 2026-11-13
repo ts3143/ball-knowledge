@@ -24,8 +24,9 @@ def format_dive(d: PlannedDive, plan: Plan, rules: DiveRules) -> list[str]:
     head = f"{label}   opens {_when(d.opens_at, rules)}   closes {_when(d.closes_at, rules)}"
     lines = ["-" * WIDTH, head + (f"   (virtual date {d.day}, local database only)" if d.is_test else "")]
     for pos, c in enumerate(d.picked.candidates, 1):
-        lines.append(f"  {pos}  {d.picked.bands[c.id]:<6} {c.seed:>5.0f}  #{c.id:<5} "
-                     f"{_clip(plan.texts[c.id], TEXT_WIDTH)}")
+        mark = "+" if c.id in plan.auto_approved else " "
+        lines.append(f"  {pos}  {d.picked.bands[c.id]:<6} {c.seed:>5.0f}  #{c.id:<5}{mark}"
+                     f"{_clip(plan.texts[c.id], TEXT_WIDTH - 1)}")
     templates = Counter(c.template for c in d.picked.candidates)
     lines.append("  templates: " + ", ".join(f"{t} {n}" for t, n in sorted(templates.items())))
     lines += [f"  WARNING: {w}" for w in d.picked.warnings]
@@ -47,8 +48,11 @@ def print_plan(plan: Plan, comp: Competition, rules: DiveRules, seed: int, dry_r
         out(f"NOTE: {note}")
     if plan.unscheduled:
         out(f"NOT SCHEDULED: {len(plan.unscheduled)} date(s), {plan.unscheduled[0]} to {plan.unscheduled[-1]}: "
-            f"not enough approved prompts left (a dive needs {rules.prompts_per_dive}).")
-    out(f"approved prompts left unused: {plan.pool_left}")
+            f"not enough usable prompts left (a dive needs {rules.prompts_per_dive}).")
+    if plan.auto_approved:
+        out(f"+ = gate_passed, approved automatically when scheduled ({len(plan.auto_approved)} prompts"
+            + ("; dry run: not changed)" if dry_run else ")"))
+    out(f"usable prompts left unused: {plan.pool_left}")
 
 
 def _state(now: datetime, opens_at: datetime, closes_at: datetime) -> str:
@@ -56,11 +60,11 @@ def _state(now: datetime, opens_at: datetime, closes_at: datetime) -> str:
 
 
 def print_status(cur, comp: Competition, tunables: dict, rules: DiveRules, now: datetime, out=print) -> None:
-    """The queue and the runway of approved prompts; test dives are listed apart."""
+    """The queue and the runway of usable (approved or auto-approvable) prompts; test dives are listed apart."""
     today = dive_date_at(now, rules)
     cur.execute("select status, count(*) as n from prompts where competition_id = %s group by status", (comp.id,))
     by_status = {r["status"]: r["n"] for r in cur.fetchall()}
-    pool, _, notes = load_pool(cur, comp, tunables)
+    pool, _, notes, pending = load_pool(cur, comp, tunables)
     cur.execute("select d.id, d.dive_date, d.opens_at, d.closes_at, d.is_test,"
                 " (select count(*) from dive_prompts p where p.dive_id = d.id) as prompts,"
                 " (select count(*) from attempts a where a.dive_id = d.id) as attempts"
@@ -79,13 +83,14 @@ def print_status(cur, comp: Competition, tunables: dict, rules: DiveRules, now: 
     out(f"{comp.name} ({comp.slug})   dive date now {today}   {_when(now, rules)}")
     out(f"prompts: {by_status.get('gate_passed', 0)} gate_passed waiting for review, "
         f"{by_status.get('approved', 0)} approved, {by_status.get('rejected', 0)} rejected")
-    out(f"approved and unused: {len(pool)} = {extra_dives} more dive{'s' if extra_dives != 1 else ''} "
-        f"of {n} (the rest, {len(pool) % n}, wait for more approvals)")
+    out(f"unused and usable: {len(pool)} (approved {len(pool) - len(pending)}, gate_passed and auto-approvable "
+        f"{len(pending)}) = {extra_dives} more dive{'s' if extra_dives != 1 else ''} of {n} "
+        f"(the rest, {len(pool) % n}, wait for more prompts)")
     out(f"queue: {len(ahead)} dive{'s' if len(ahead) != 1 else ''} from today on; runway "
         f"{len(ahead) + extra_dives} day{'s' if len(ahead) + extra_dives != 1 else ''} (target {rules.queue_days})")
     if gaps:
         out(f"dates without a dive in the next {rules.queue_days} days: {', '.join(map(str, gaps))}")
-        out(f"  `python -m dives schedule {comp.slug}` fills them; it needs {n * len(gaps)} unused approved "
+        out(f"  `python -m dives schedule {comp.slug}` fills them; it needs {n * len(gaps)} unused "
             f"prompts, {len(pool)} available")
     for note in notes:
         out(f"NOTE: {note}")
@@ -156,4 +161,6 @@ def print_purge(result, comp: Competition, dry_run: bool, out=print) -> None:
         f"rating history rows {c['rating_history']}")
     out(f"  prompt ratings {c['prompt_ratings']}   players involved {c['users']} "
         f"(their ratings cache rows deleted: {c['ratings']})")
-    out(f"  prompts returned to the pool: {c['prompts_released']} (still approved, no longer frozen)")
+    out(f"  prompts returned to the pool: {c['prompts_released']} (no longer frozen)")
+    out(f"  of which approved by the scheduler, back to gate_passed: {c['back_to_gate_passed']} "
+        "(prompts approved by hand stay approved)")

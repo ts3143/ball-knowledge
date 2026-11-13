@@ -35,7 +35,7 @@ def main() -> None:
     gen.add_argument("--dry-run", action="store_true", help="compute and print the summary, write nothing")
     rep = commands.add_parser("report", help="print yields, samples and checks; read-only")
     rep.add_argument("--write-review", action="store_true", help="also write the review files for T")
-    rev = commands.add_parser("review", help="T's approval: show gate_passed prompts one at a time (interactive)")
+    rev = commands.add_parser("review", help="OPTIONAL manual review: approve, reject or reword gate_passed prompts one at a time (prompts ship without it: the scheduler approves them; use this to reject bad ones)")
     rev.add_argument("--template", choices=list(TEMPLATES), action="append", help="only this template (repeatable)")
     rev.add_argument("--limit", type=int, help="review at most this many prompts (templates take turns)")
     for name, helptext in (("approve", "approve gate_passed prompts by id"),

@@ -48,7 +48,7 @@ def dive_prompts(w, dive_id):
 def test_schedule_fills_the_next_seven_dates_with_seven_unique_approved_prompts(conn, setup):
     w, tunables, rules, comp = setup
     pool = fill_pool(w, 60)
-    fill_pool(w, 5, status="gate_passed", first=100)  # not approved: never scheduled
+    fill_pool(w, 5, status="rejected", first=100)  # rejected: never scheduled
     plan = schedule(conn, comp, tunables, rules, now=NOW)
 
     assert [d.day for d in plan.dives] == [date(2030, 6, 10) + timedelta(days=i) for i in range(7)]
@@ -112,8 +112,9 @@ def test_with_too_few_prompts_it_schedules_what_it_can_and_never_a_short_dive(co
     assert len(dives(w)) == 2
 
 
-def test_no_approved_prompts_means_no_dives(conn, setup):
+def test_without_auto_approve_gate_passed_prompts_are_not_used(conn, setup):
     w, tunables, rules, comp = setup
+    tunables["scheduler"]["auto_approve"] = False
     fill_pool(w, 20, status="gate_passed")
     plan = schedule(conn, comp, tunables, rules, now=NOW)
     assert plan.dives == [] and len(plan.unscheduled) == 7 and plan.pool_left == 0
@@ -196,7 +197,7 @@ def test_virtual_dates_never_collide_with_real_dates_and_real_scheduling_ignores
 def test_open_now_fails_clearly_without_enough_prompts_or_dates(conn, setup):
     w, tunables, rules, comp = setup
     fill_pool(w, 6)
-    with pytest.raises(DiveError, match="6 approved prompts not used in any dive"):
+    with pytest.raises(DiveError, match="6 usable prompts not used in any dive"):
         open_now(conn, comp, tunables, rules, now=NOW)
     with pytest.raises(DiveError, match="at least 1"):
         open_now(conn, comp, tunables, rules, minutes=0, now=NOW)
@@ -277,7 +278,8 @@ def test_purging_a_played_test_dive_removes_everything_and_frees_the_prompts(con
 
     assert result.dive_dates == [date(1900, 1, 1)]
     assert result.counts == {"dives": 1, "prompts_released": 7, "attempts": 1, "review_queue": 1, "answers": 8,
-                             "rating_history": 1, "prompt_ratings": 1, "users": 1, "ratings": 1}
+                             "rating_history": 1, "prompt_ratings": 1, "users": 1, "ratings": 1,
+                             "back_to_gate_passed": 0}
     assert dives(w, is_test=True) == []
     for table, col in (("attempts", "user_id"), ("ratings", "user_id"), ("rating_history", "user_id")):
         assert count(w, f"select count(*) as n from {table} where {col} = %s", user) == 0
@@ -392,3 +394,99 @@ def test_test_purges_has_no_access_for_the_app_roles(conn):
             assert not conn.execute("select has_table_privilege(%s, 'public.test_purges', %s)",
                                     (role, privilege)).fetchone()[0], (role, privilege)
     assert conn.execute("select relrowsecurity from pg_class where relname = 'test_purges'").fetchone()[0]
+
+
+# ---------------------------------------------------------------------------
+# auto-approval at scheduling (T, 2026-11-13)
+# ---------------------------------------------------------------------------
+
+def status_of_prompts(w, ids):
+    rows = w.cur.execute("select id, status, reviewed_at, review_note from prompts where id = any(%s)",
+                         (ids,)).fetchall()
+    return {r["id"]: r for r in rows}
+
+
+def test_schedule_approves_exactly_the_chosen_gate_passed_prompts(conn, setup):
+    w, tunables, rules, comp = setup
+    pool = fill_pool(w, 60, status="gate_passed")
+    hand = fill_pool(w, 5, first=200)  # approved by hand
+    rejected = fill_pool(w, 5, status="rejected", first=300)
+    failed = fill_pool(w, 5, status="gate_failed", first=400)
+    plan = schedule(conn, comp, tunables, rules, now=NOW)
+
+    chosen = {c.id for d in plan.dives for c in d.picked.candidates}
+    assert len(plan.dives) == 7 and len(chosen) == 49 and chosen <= set(pool) | set(hand)
+    assert plan.auto_approved == chosen & set(pool)
+    states = status_of_prompts(w, pool + hand)
+    for pid in pool:
+        s = states[pid]
+        if pid in chosen:
+            assert (s["status"], s["review_note"]) == ("approved", "auto-approved at scheduling")
+            assert s["reviewed_at"] is not None
+        else:
+            assert (s["status"], s["reviewed_at"], s["review_note"]) == ("gate_passed", None, None)
+    assert {states[p]["review_note"] for p in hand} == {None}  # hand-approved ones are not rewritten
+    assert {s["status"] for s in status_of_prompts(w, rejected).values()} == {"rejected"}
+    assert {s["status"] for s in status_of_prompts(w, failed).values()} == {"gate_failed"}
+    # now in dives, so frozen
+    with pytest.raises(errors.RestrictViolation), conn.transaction():
+        conn.execute("update prompts set text = 'x' where id = %s", (next(iter(chosen)),))
+
+
+def test_a_dry_run_marks_but_does_not_approve(conn, setup):
+    w, tunables, rules, comp = setup
+    pool = fill_pool(w, 49, status="gate_passed")
+    plan = schedule(conn, comp, tunables, rules, dry_run=True, now=NOW)
+    assert plan.auto_approved == set(pool)
+    assert {s["status"] for s in status_of_prompts(w, pool).values()} == {"gate_passed"}
+
+
+def test_rejected_and_gate_failed_prompts_are_never_picked(conn, setup):
+    w, tunables, rules, comp = setup
+    fill_pool(w, 6, status="gate_passed")
+    fill_pool(w, 30, status="rejected", first=100)
+    fill_pool(w, 30, status="gate_failed", first=200)
+    plan = schedule(conn, comp, tunables, rules, now=NOW)
+    assert plan.dives == [] and plan.pool_left == 6
+
+
+def test_with_auto_approve_off_only_approved_prompts_are_used(conn, setup):
+    w, tunables, rules, comp = setup
+    tunables["scheduler"]["auto_approve"] = False
+    gate_passed = fill_pool(w, 30, status="gate_passed")
+    hand = fill_pool(w, 7, first=100)
+    plan = schedule(conn, comp, tunables, rules, now=NOW)
+    assert len(plan.dives) == 1 and {c.id for c in plan.dives[0].picked.candidates} == set(hand)
+    assert plan.auto_approved == set()
+    assert {s["status"] for s in status_of_prompts(w, gate_passed).values()} == {"gate_passed"}
+
+
+def test_open_now_approves_the_prompts_it_takes(conn, setup):
+    w, tunables, rules, comp = setup
+    pool = fill_pool(w, 10, status="gate_passed")
+    plan = open_now(conn, comp, tunables, rules, now=NOW)
+    chosen = {c.id for c in plan.dives[0].picked.candidates}
+    assert plan.auto_approved == chosen
+    states = status_of_prompts(w, pool)
+    assert {states[p]["status"] for p in chosen} == {"approved"}
+    assert {states[p]["status"] for p in set(pool) - chosen} == {"gate_passed"}
+
+
+def test_purge_restores_scheduler_approved_prompts_and_keeps_hand_approved_ones(conn, setup):
+    w, tunables, rules, comp = setup
+    auto = fill_pool(w, 4, status="gate_passed")
+    hand = fill_pool(w, 3, first=100)
+    plan = open_now(conn, comp, tunables, rules, now=NOW)
+    assert {c.id for c in plan.dives[0].picked.candidates} == set(auto + hand)
+
+    result = purge_test(conn, comp, None)
+
+    assert result.counts["prompts_released"] == 7 and result.counts["back_to_gate_passed"] == 4
+    states = status_of_prompts(w, auto + hand)
+    for pid in auto:
+        assert (states[pid]["status"], states[pid]["reviewed_at"], states[pid]["review_note"]) == (
+            "gate_passed", None, None)
+    assert {states[p]["status"] for p in hand} == {"approved"}
+    # a later schedule approves them again
+    again = open_now(conn, comp, tunables, rules, now=NOW)
+    assert again.auto_approved == set(auto)
