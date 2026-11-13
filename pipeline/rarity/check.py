@@ -8,6 +8,7 @@ from collections import defaultdict
 from psycopg.rows import dict_row
 
 from prompts.gates import status as gate_status
+from prompts.gates import status_matches
 
 from .model import MODEL_VERSION, ROUND_DIGITS
 from .stage import RARITY_COLUMNS, exact_floats, recompute
@@ -17,7 +18,7 @@ def structure_problems(p: dict, answer_rows: int) -> list[str]:
     """What is inconsistent in one prompt row regardless of model version: p has id, status, gate_results,
     answer_count, rarity (None for SQL NULL) and rarity_type (jsonb_typeof of it)."""
     pid, out = p["id"], []
-    if p["status"] != gate_status(p["gate_results"]):
+    if not status_matches(p["status"], p["gate_results"]):
         out.append(f"[{pid}] status {p['status']!r} contradicts its gate_results ({gate_status(p['gate_results'])!r})")
     if p["answer_count"] != answer_rows:
         out.append(f"[{pid}] answer_count {p['answer_count']} but {answer_rows} answer rows")

@@ -568,3 +568,40 @@ def test_an_over_listed_season_is_undecidable(conn):
     w = World(conn, seasons={2008: "ABC", 2009: "ABCD", 2010: "ABC"})
     w.run("relegated_clubs", "promoted_clubs")
     assert w.prompts("relegated_clubs") == [] and w.prompts("promoted_clubs") == []
+
+
+def test_rejected_prompt_is_left_alone_like_an_approved_one(world):
+    w = world
+    p1, p2 = w.person("P1"), w.person("P2")
+    w.stint(p1, "A")
+    w.stint(p1, "B")
+    w.run("club_pair")
+    prompt = w.prompts("club_pair")[0]
+    w.cur.execute("update prompts set status = 'rejected', reviewed_at = now(), review_note = 'no' where id = %s",
+                  (prompt["id"],))
+    w.stint(p2, "A")
+    w.stint(p2, "B")
+    rejected_before = w.prompts("club_pair")[0]
+    answers_before = w.answers(prompt["id"])
+
+    stats = w.run("club_pair")["club_pair"]
+
+    assert (stats.inserted, stats.updated, stats.deleted, stats.rejected, stats.approved) == (0, 0, 0, 1, 0)
+    assert stats.approved_diffs == []
+    assert w.prompts("club_pair")[0] == rejected_before  # still rejected, same text, answers and note
+    assert w.answers(prompt["id"]) == answers_before
+    assert len(w.prompts("club_pair")) == 1  # and not regenerated as a second prompt
+
+
+def test_rejected_prompt_survives_when_no_longer_produced(world):
+    w = world
+    p1 = w.person("P1")
+    f = w.stint(p1, "B")
+    w.stint(p1, "A")
+    w.run("club_pair")
+    w.cur.execute("update prompts set status = 'rejected', reviewed_at = now(), review_note = 'no'"
+                  " where template = 'club_pair' and competition_id = %s", (w.comp["id"],))
+    w.cur.execute("delete from facts where id = %s", (f,))
+    stats = w.run("club_pair")["club_pair"]
+    assert (stats.deleted, stats.rejected_gone) == (0, 1)
+    assert len(w.prompts("club_pair")) == 1

@@ -22,6 +22,7 @@ from ingest.report import _q
 from rarity.features import current_from_year
 from rarity.model import WEAK_FLAG, ModelParams, tier_gate
 
+from .gates import APPROVED, PASSED_STATUSES, REJECTED
 from .templates import TEMPLATES
 
 REVIEW_DIR = Path(__file__).resolve().parents[1] / "data" / "review"
@@ -73,7 +74,7 @@ class Data:
         for p in self.prompts:  # most likely pick first; unrated answers (a prompt that failed the size gate) last
             p["answers"].sort(key=lambda a: (-(a["share"] or 0), a["name"]))
 
-        fact_ids = list({f for p in self.prompts if p["status"] == "gate_passed"
+        fact_ids = list({f for p in self.prompts if p["status"] in PASSED_STATUSES
                          for a in p["answers"] for f in a["fact_ids"]})
         self.facts = {r[0]: dict(zip(("id", "predicate", "start_year", "end_year", "apps", "source", "object_name"), r))
                       for r in _q(cur, "select f.id, f.predicate, f.start_year, f.end_year, f.apps, f.source,"
@@ -89,7 +90,7 @@ class Data:
         self.name_mismatches = [(n, t) for n, t in self.name_mismatches if name_mismatch(n, t)]
 
     def passing(self, template_id: str) -> list[dict]:
-        return [p for p in self.prompts if p["template"] == template_id and p["status"] == "gate_passed"]
+        return [p for p in self.prompts if p["template"] == template_id and p["status"] in PASSED_STATUSES]
 
     def of(self, template_id: str) -> list[dict]:
         return [p for p in self.prompts if p["template"] == template_id]
@@ -125,6 +126,8 @@ def template_numbers(data: Data, template_id: str) -> dict:
 
     return {
         "generated": len(prompts), "passed": len(passing),
+        "approved": sum(p["status"] == APPROVED for p in prompts),
+        "rejected": sum(p["status"] == REJECTED for p in prompts),
         "too_few": sum(g["size"]["n"] < g["size"]["min"] for g in gr),
         "too_many": sum(g["size"]["n"] > g["size"]["max"] for g in gr),
         "size_passed": sum(g["size"]["pass"] for g in gr),
@@ -152,7 +155,8 @@ def format_numbers(n: dict) -> list[str]:
     reasons = ", ".join(f"{r} {c}" for r, c in n["tier_reasons"].most_common()) or "-"
     counts = "/".join(f"{c:g}" for c in n["tier_counts"])
     return [
-        (f"generated {n['generated']}   gate_passed {n['passed']}   failed: too few {n['too_few']}, "
+        (f"generated {n['generated']}   gate_passed {n['passed']} (approved {n['approved']}, "
+         f"rejected {n['rejected']})   failed: too few {n['too_few']}, "
          f"too many {n['too_many']}, tier gate {n['tier_failed']}"),
         (f"tier gate failures by reason (a prompt can have several): {reasons}; "
          f"lost to the weak-answer cap: {n['weak_cap_lost']}"),
@@ -169,7 +173,7 @@ def weak_breakdown(data: Data) -> tuple[int, Counter]:
     """Answers flagged weak_stint in passing prompts, and the weak reasons of their evidence stints."""
     total, reasons = 0, Counter()
     for p in data.prompts:
-        if p["status"] != "gate_passed":
+        if p["status"] not in PASSED_STATUSES:
             continue
         for a in p["answers"]:
             if WEAK_FLAG in a["flags"]:
@@ -302,7 +306,7 @@ def write_review_files(data: Data, numbers: dict, review_dir: Path = REVIEW_DIR,
         w.writerow(["prompt_id", "template", "prompt", "entity_id", "name", "tier", "tier_name", "model_tier",
                     "points", "share", "views_de", "views_en", "tie_amount", "seasons_since", "flags", "evidence"])
         for p in data.prompts:
-            if p["status"] != "gate_passed":
+            if p["status"] not in PASSED_STATUSES:
                 continue
             for a in p["answers"]:
                 w.writerow([p["id"], p["template"], p["text"], a["entity_id"], a["name"], a["tier"],

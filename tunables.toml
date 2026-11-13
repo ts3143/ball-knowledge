@@ -1,15 +1,74 @@
 # Ball Knowledge — every tunable lives here.
 # Values marked "starting value" come from CLAUDE.md / docs/DESIGN.md and get tuned in simulation (step 4).
-# Lines marked TBD are deliberately unset: the docs leave them open, so they're decided in the step that needs them.
 
 # ---------------------------------------------------------------------------
 # The dive
 # ---------------------------------------------------------------------------
 [dive]
+# Prompts in one dive; the scheduler never writes a dive with fewer.
 prompts_per_dive = 7
+# The timer per prompt, enforced by the server.
 seconds_per_prompt = 25
-# grace_seconds = TBD (step 5) — "small grace" after the 25 s timer
-# reset_time = TBD — assumed midnight US Eastern, open question for T
+# T (2026-11-12): the server accepts an answer up to this many seconds after the timer (network lag).
+grace_seconds = 3
+# T (2026-11-12): a dive opens at reset_time on its date in this time zone (IANA name) and closes at the next
+# reset. Computed in Python (zoneinfo); the app stores opens_at and closes_at and has no time zone code.
+reset_timezone = "America/New_York"
+reset_time = "00:00"
+# How many days of dives `dives schedule` keeps queued, today included (CLAUDE.md: 1 week).
+queue_days = 7
+# T (2026-11-12): an attempt started before the dive closed may keep being served for this many minutes after it.
+late_finish_minutes = 15
+# Test mode, local database only (`python -m dives open-now`): T wants to try dives without waiting for dates.
+# A test dive opens now and closes after this many minutes (--minutes overrides it).
+test_dive_minutes = 30
+# Each test dive gets the next free virtual date in this range, so it is its own rating period and can never
+# collide with a real date. The range must lie before 2000-01-01 (a database check enforces it); 36,500 dates.
+test_date_start = "1900-01-01"
+test_date_end = "1999-12-31"
+
+# ---------------------------------------------------------------------------
+# Competitions that have dives, keyed by the slug the commands use (python -m dives schedule bundesliga)
+# ---------------------------------------------------------------------------
+[competitions.bundesliga]
+# Wikidata item of the competition (the entities row the dives and prompts point to).
+qid = "Q82595"
+# Shown to players.
+name = "Bundesliga"
+# The top Glicko-2 scope above the competition.
+sport = "football"
+
+# ---------------------------------------------------------------------------
+# Dive scheduling (step 5): how `dives schedule` and `dives open-now` pick the 7 prompts of a dive
+# ---------------------------------------------------------------------------
+[scheduler]
+# The pool's prompts are cut into terciles by seed difficulty (easy = lowest seed rating). A dive takes this many
+# from each band; the quotas must add up to [dive].prompts_per_dive. Prompts run easiest to hardest.
+easy_quota = 2
+medium_quota = 3
+hard_quota = 2
+# At most this many prompts of one template in a dive, and at most this many that name the same club.
+# When they cannot be met, the quota is relaxed first, then these caps (with a warning).
+max_per_template = 2
+max_per_club = 2
+# Seeds the random choice among eligible prompts (--seed overrides it).
+seed = 7
+
+# ---------------------------------------------------------------------------
+# Answer matching (step 5, server side; matcher_version "bk-match-1")
+# ---------------------------------------------------------------------------
+[matching]
+# Typos: the edits allowed grow with the length of the matched key (name). Under the first length, none.
+fuzzy_one_edit_min_chars = 5
+fuzzy_two_edits_min_chars = 9
+# A club's partial names (word runs inside an alias, such as "FC Testhausen") need at least this many characters.
+partial_min_chars = 4
+# A surname derived from a label (its last word) needs at least this many characters.
+derived_surname_min_chars = 3
+# Typed input beyond this many characters is rejected (the database caps raw_text at 200).
+max_input_chars = 100
+# At most this many real-entity candidates are stored with a review_queue row.
+review_candidates_max = 20
 
 # ---------------------------------------------------------------------------
 # Rarity tiers (starting values). Cumulative share of predicted picks, most obvious first.

@@ -190,3 +190,15 @@ def test_table_cells_escape_backslashes_and_pipes_and_flatten_newlines():
     assert _cell("a|b") == "a\\|b"
     assert _cell("a\\|b") == "a\\\\\\|b"  # a literal backslash, then an escaped pipe
     assert _cell("line one\nline two\r\nthree") == "line one line two three"
+
+
+def test_approved_and_rejected_prompts_still_count_as_passing_in_the_report():
+    answers = five()
+    data = fake_data([prompt(1, "club_pair", "Undecided", "gate_passed", answers),
+                      prompt(2, "club_pair", "Approved", "approved", five()),
+                      prompt(3, "club_pair", "Rejected", "rejected", five()),
+                      prompt(4, "club_pair", "Failing", "gate_failed", [answer("Nobody", 1.0, 1)])])
+    assert [p["text"] for p in data.passing("club_pair")] == ["Undecided", "Approved", "Rejected"]
+    n = template_numbers(data, "club_pair")
+    assert (n["generated"], n["passed"], n["approved"], n["rejected"]) == (4, 3, 1, 1)
+    assert "gate_passed 3 (approved 1, rejected 1)" in format_numbers(n)[0]

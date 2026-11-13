@@ -2,7 +2,7 @@
 
 Prompts are keyed on (template, params). Candidates are rewritten only when something changed;
 approved prompts are never rewritten or deleted (hard rule 6): the run reports how their answer
-set would differ and leaves them alone.
+set would differ and leaves them alone. Rejected prompts are T's decision too and are left alone the same way.
 """
 
 import json
@@ -18,6 +18,7 @@ from rarity.model import ModelParams
 from rarity.stage import RARITY_COLUMNS, exact_floats, pageviews_through, rate_for_storage, stored_params
 
 from . import gates
+from .gates import APPROVED, DECIDED_STATUSES, REJECTED
 from .templates import TEMPLATES, Template
 
 
@@ -63,7 +64,9 @@ class Stats:
     unchanged: int = 0
     deleted: int = 0
     approved: int = 0
+    rejected: int = 0  # T's rejections: left alone, never revived or deleted
     approved_gone: int = 0
+    rejected_gone: int = 0
     approved_params_differ: int = 0  # approved prompts whose stored rarity params differ from the current ones
     approved_diffs: list[ApprovedDiff] = field(default_factory=list)
 
@@ -198,12 +201,15 @@ def _store(cur, template: Template, competition_id: int, generated: list[Generat
             continue
 
         before = old_answers[row["id"]]
-        if row["status"] == "approved":
-            stats.approved += 1
-            if before.keys() != g.answers.keys():
-                stats.approved_diffs.append(_approved_diff(cur, row, before, g))
-            if g.rarity is not None and (row["rarity"] or {}).get("params") != g.rarity["params"]:
-                stats.approved_params_differ += 1
+        if row["status"] in DECIDED_STATUSES:
+            if row["status"] == APPROVED:
+                stats.approved += 1
+                if before.keys() != g.answers.keys():
+                    stats.approved_diffs.append(_approved_diff(cur, row, before, g))
+                if g.rarity is not None and (row["rarity"] or {}).get("params") != g.rarity["params"]:
+                    stats.approved_params_differ += 1
+            else:
+                stats.rejected += 1
             continue
 
         same = (row["text"], row["answer_query"], row["club_ids"], row["status"], row["gate_results"],
@@ -224,8 +230,9 @@ def _store(cur, template: Template, competition_id: int, generated: list[Generat
         stats.updated += 1
 
     gone = [r for k, r in existing.items() if k not in produced]
-    stats.approved_gone = sum(r["status"] == "approved" for r in gone)
-    to_delete = [r["id"] for r in gone if r["status"] != "approved"]
+    stats.approved_gone = sum(r["status"] == APPROVED for r in gone)
+    stats.rejected_gone = sum(r["status"] == REJECTED for r in gone)
+    to_delete = [r["id"] for r in gone if r["status"] not in DECIDED_STATUSES]
     if to_delete:
         cur.execute("delete from prompts where id = any(%s)", (to_delete,))
     stats.deleted = len(to_delete)
@@ -264,6 +271,8 @@ def print_summary(stats: dict[str, Stats], dry_run: bool) -> None:
         print(f"  size gate passed {s.size_passed}, tier gate blocks {s.tier_failed} of those "
               f"(the weak-answer cap alone costs {s.weak_cap_cost})")
         print(f"  inserted {s.inserted}   updated {s.updated}   unchanged {s.unchanged}   deleted {s.deleted}")
+        if s.rejected or s.rejected_gone:
+            print(f"  rejected {s.rejected} (left alone; no longer produced: {s.rejected_gone})")
         if s.approved or s.approved_gone:
             print(f"  approved {s.approved} (answer set differs: {len(s.approved_diffs)}, "
                   f"no longer produced: {s.approved_gone}, rarity params differ from the current: "

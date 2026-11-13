@@ -1,4 +1,4 @@
-from prompts.gates import gate_results, size_gate, status
+from prompts.gates import gate_results, size_gate, status, status_matches
 
 QUALITY_GATES = {"min_answers": 15, "max_answers": 300}
 
@@ -30,3 +30,13 @@ def test_status_fails_when_a_gate_that_ran_fails():
     results = {**gate_results(20, QUALITY_GATES), "tiers": {"pass": False}}
     assert status(results) == "gate_failed"
     assert status({**results, "tiers": {"pass": True}}) == "gate_passed"
+
+
+def test_a_decision_replaces_gate_passed_but_never_hides_a_failed_gate():
+    passed, failed = gate_results(20, QUALITY_GATES), gate_results(14, QUALITY_GATES)
+    assert status_matches("gate_passed", passed) and status_matches("gate_failed", failed)
+    for decided in ("approved", "rejected"):
+        assert status_matches(decided, passed)
+        assert not status_matches(decided, failed)  # a prompt that fails the gates cannot have been approved
+    assert not status_matches("gate_failed", passed) and not status_matches("gate_passed", failed)
+    assert not status_matches("candidate", passed)

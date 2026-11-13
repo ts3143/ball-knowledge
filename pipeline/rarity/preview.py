@@ -11,6 +11,7 @@ from pathlib import Path
 
 from psycopg.rows import dict_row
 
+from prompts.gates import PASSED_STATUSES
 from prompts.templates import TEMPLATES
 
 from .calibrate import (
@@ -57,16 +58,18 @@ class StoredPrompt:
 def load_prompts(cur, template_ids: list[str] | None = None, prompt_id: int | None = None,
                  limit: int | None = None, all_statuses: bool = False, n_range: tuple[int, int] | None = None,
                  ids: list[int] | None = None) -> list[StoredPrompt]:
-    """Stored prompts (gate_passed unless all_statuses) with their answers; `limit` is per template. n_range
+    """Stored prompts (those that passed the gates, approved or rejected included, unless all_statuses) with their
+    answers; `limit` is per template. n_range
     keeps prompts with that many answers (inclusive) whatever their status, and ids picks prompts by id.
     `cur` must be a dict_row cursor."""
     lo, hi = n_range or (0, 0)
     cur.execute("select id, template, text, club_ids from prompts"
-                " where (%s or %s or status = 'gate_passed') and (%s::text[] is null or template = any(%s))"
+                " where (%s or %s or status = any(%s)) and (%s::text[] is null or template = any(%s))"
                 " and (%s::bigint is null or id = %s) and (%s::bigint[] is null or id = any(%s))"
                 " and (%s or (select count(*) from prompt_answers a where a.prompt_id = prompts.id) between %s and %s)"
                 " order by template, id",
-                (all_statuses, n_range is not None, template_ids, template_ids, prompt_id, prompt_id, ids, ids,
+                (all_statuses, n_range is not None, list(PASSED_STATUSES), template_ids, template_ids, prompt_id,
+                 prompt_id, ids, ids,
                  n_range is None, lo, hi))
     rows, per_template = [], Counter()
     for r in cur.fetchall():

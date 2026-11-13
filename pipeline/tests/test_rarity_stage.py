@@ -4,6 +4,7 @@ Needs the local database."""
 from datetime import date
 
 import pytest
+from psycopg.types.json import Jsonb
 
 from rarity.check import check
 from rarity.stage import RARITY_COLUMNS
@@ -237,3 +238,24 @@ def test_the_database_refuses_half_rated_answers_and_uncapped_tiers_and_unrated_
             w.cur.execute(sql, (prompt["id"], entity))
     with pytest.raises(Exception, match="prompts_approved_has_rarity"), conn.transaction():
         w.cur.execute("update prompts set status = 'approved', rarity = null where id = %s", (prompt["id"],))
+
+
+def test_check_accepts_approved_and_rejected_prompts_and_still_recomputes_them(conn, capsys):
+    w = World(conn)
+    club_a_citizens(w, graded)
+    w.run("club_nationality")
+    prompt, _ = prompt_and_answers(w)
+    for status in ("approved", "rejected", "gate_passed"):
+        w.cur.execute("update prompts set status = %s, reviewed_at = now() where id = %s", (status, prompt["id"]))
+        assert check(conn, w.comp["id"]) == 0, status
+        assert "all reproduce exactly" in capsys.readouterr().out
+    # a decision does not excuse a failed gate: this prompt's gate_results say it failed
+    w.cur.execute("update prompts set status = 'approved', gate_results = jsonb_set(gate_results, '{tiers,pass}',"
+                  " 'false') where id = %s", (prompt["id"],))
+    assert check(conn, w.comp["id"]) >= 1
+    assert "contradicts its gate_results" in capsys.readouterr().out
+    # and tampering with an approved prompt's answers is still caught
+    w.cur.execute("update prompts set status = 'approved', gate_results = %s where id = %s",
+                  (Jsonb(prompt["gate_results"]), prompt["id"]))
+    w.cur.execute("update prompt_answers set points = 10 where prompt_id = %s and tier > 1", (prompt["id"],))
+    assert check(conn, w.comp["id"]) >= 1
