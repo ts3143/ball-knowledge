@@ -18,6 +18,14 @@
     {"input": "  Jean-Marie   Exemple ", "norm": "jean marie exemple", "translit": null},
     {"input": "Ü. Testmann Jr.", "norm": "u testmann jr", "translit": "ue testmann jr"},
     {"input": "Müller", "norm": "muller", "translit": "mueller"},
-    {"input": "...", "norm": "", "translit": null}
+    {"input": "...", "norm": "", "translit": null},
+    {"input": "STRAUẞ", "norm": "strauss", "translit": null},
+    {"input": "Ｍüller", "norm": "muller", "translit": "mueller"},
+    {"input": "Ｔｅｓｔｍａｎｎ", "norm": "testmann", "translit": null},
+    {"input": "Nguyễn Văn Đức", "norm": "nguyen van duc", "translit": null},
+    {"input": "İSTANBUL", "norm": "istanbul", "translit": null},
+    {"input": "O`Tester", "norm": "otester", "translit": null},
+    {"input": "Test_Mann", "norm": "test mann", "translit": null},
+    {"input": "ǅ", "norm": "dz", "translit": null}
   ]
 }
