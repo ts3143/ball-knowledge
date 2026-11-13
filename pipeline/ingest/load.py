@@ -31,12 +31,14 @@ def _copy_upsert(cur: psycopg.Cursor, table: str, columns: list[str], rows: list
 def load(conn: psycopg.Connection, ex: Extraction, pageviews: list[tuple] | None) -> dict[str, int]:
     """Writes everything; returns how many rows each table now holds."""
     with conn.transaction(), conn.cursor() as cur:
-        entity_cols = ["wikidata_id", "type", "canonical_name", "description", "dewiki_title", "enwiki_title"]
+        entity_cols = ["wikidata_id", "type", "canonical_name", "description", "dewiki_title", "enwiki_title",
+                       "display_name", "demonym"]
         cur.execute("create temp table tmp_entities on commit drop as "
                     f"select {', '.join(entity_cols)} from entities with no data")
         with cur.copy(f"copy tmp_entities ({', '.join(entity_cols)}) from stdin") as copy:
             for e in ex.entities.values():
-                copy.write_row((e.wikidata_id, e.type, e.canonical_name, e.description, e.dewiki_title, e.enwiki_title))
+                copy.write_row((e.wikidata_id, e.type, e.canonical_name, e.description, e.dewiki_title, e.enwiki_title,
+                                e.display_name, e.demonym))
         # updated_at moves only when something actually changed.
         cur.execute(f"""
             insert into entities ({', '.join(entity_cols)})
@@ -44,11 +46,14 @@ def load(conn: psycopg.Connection, ex: Extraction, pageviews: list[tuple] | None
             on conflict (wikidata_id) do update set
               type = excluded.type, canonical_name = excluded.canonical_name,
               description = excluded.description, dewiki_title = excluded.dewiki_title,
-              enwiki_title = excluded.enwiki_title, last_seen_at = now(),
+              enwiki_title = excluded.enwiki_title, display_name = excluded.display_name,
+              demonym = excluded.demonym, last_seen_at = now(),
               updated_at = case when (entities.type, entities.canonical_name, entities.description,
-                                      entities.dewiki_title, entities.enwiki_title)
+                                      entities.dewiki_title, entities.enwiki_title,
+                                      entities.display_name, entities.demonym)
                                   is distinct from (excluded.type, excluded.canonical_name, excluded.description,
-                                                    excluded.dewiki_title, excluded.enwiki_title)
+                                                    excluded.dewiki_title, excluded.enwiki_title,
+                                                    excluded.display_name, excluded.demonym)
                                 then now() else entities.updated_at end
         """)
         cur.execute("select wikidata_id, id from entities")

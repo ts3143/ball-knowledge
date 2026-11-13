@@ -12,10 +12,13 @@ from ingest.extract import (
     add_aliases,
     add_entity,
     classify_stint,
+    display_name,
     parse_seasons,
     parse_time_string,
     people_facts,
+    pick_demonym,
     season_facts,
+    strip_disambiguation,
 )
 
 SCOPE = Scope(start_year=2000, min_birth_year=1965, languages=("en", "de", "mul"))
@@ -709,3 +712,97 @@ def test_people_facts_is_deterministic_on_the_same_input():
     first, _ = run_rows(copy.deepcopy(persons), rows)
     second, _ = run_rows(copy.deepcopy(persons), rows)
     assert {r: f.__dict__ for r, f in first.facts.items()} == {r: f.__dict__ for r, f in second.facts.items()}
+
+
+# --- display names, demonyms and the enwiki_title alias ---------------------------------
+
+@pytest.mark.parametrize("title, expected", [
+    ("Placeholder Name (footballer, born 1973)", "Placeholder Name"),
+    ("Placeholder Name", "Placeholder Name"),
+    ("Placeholder Name (footballer)", "Placeholder Name"),
+    ("1. FC Placeholder (men) (football)", "1. FC Placeholder (men)"),  # only the trailing one
+    ("Åilton Test (A) ", "Åilton Test"),
+    ("(Only parenthetical)", None),
+    ("", None),
+    (None, None),
+])
+def test_strip_disambiguation(title, expected):
+    assert strip_disambiguation(title) == expected
+
+
+def test_display_name_falls_back_to_the_label():
+    assert display_name("Placeholder Name (footballer)", "Label Name") == "Placeholder Name"
+    assert display_name(None, "Label Name") == "Label Name"
+    assert display_name("(x)", "Label Name") == "Label Name"
+
+
+def demonym(text, lang="en", rank="normal"):
+    return {"mainsnak": {"snaktype": "value", "datavalue": {"type": "monolingualtext",
+                                                               "value": {"text": text, "language": lang}}},
+            "rank": rank}
+
+
+def country(*claims):
+    return {"id": "Q1", "claims": {"P1549": list(claims)}}
+
+
+def test_demonym_prefers_preferred_rank_then_english_then_statement_order():
+    assert pick_demonym(country(demonym("Firstish"), demonym("Secondish"))) == "Firstish"
+    assert pick_demonym(country(demonym("Firstish"), demonym("Secondish", rank="preferred"))) == "Secondish"
+    assert pick_demonym(country(demonym("Deutsch", "de", "preferred"), demonym("Firstish"))) == "Firstish"
+    assert pick_demonym(country(demonym("Britishish", "en-gb"), demonym("Plainish"))) == "Plainish"
+    assert pick_demonym(country(demonym("Britishish", "en-gb"))) == "Britishish"
+    assert pick_demonym(country(demonym("Gone", rank="deprecated"), demonym("Kept"))) == "Kept"
+
+
+def test_no_english_demonym():
+    assert pick_demonym(country(demonym("Deutsch", "de"))) is None
+    assert pick_demonym({"id": "Q1"}) is None
+    assert pick_demonym(country()) is None
+    assert pick_demonym(country({"mainsnak": {"snaktype": "novalue"}, "rank": "normal"})) is None
+
+
+def test_entities_get_display_name_and_countries_a_demonym():
+    ex = Extraction()
+    add_entity(ex, {"id": "Q1", "labels": {"en": {"value": "Label Name"}},
+                    "sitelinks": {"enwiki": {"title": "Better Name (athlete)"}}}, "person", SCOPE)
+    add_entity(ex, {"id": "Q2", "labels": {"en": {"value": "Testland"}}, "claims": {"P1549": [demonym("Testish")]}},
+               "country", SCOPE)
+    add_entity(ex, {"id": "Q3", "labels": {"en": {"value": "Elsewhere"}}, "claims": {"P1549": [demonym("Nope")]}},
+               "club", SCOPE)  # only countries carry a demonym
+    assert (ex.entities["Q1"].display_name, ex.entities["Q1"].demonym) == ("Better Name", None)
+    assert (ex.entities["Q2"].display_name, ex.entities["Q2"].demonym) == ("Testland", "Testish")
+    assert (ex.entities["Q3"].display_name, ex.entities["Q3"].demonym) == ("Elsewhere", None)
+
+
+def test_enwiki_title_alias_ranks_after_label_and_before_family_name():
+    p = person("Q1", labels={"en": {"value": "Tëst Müllerling"}}, claims={"P734": [stmt(item("Q990000200"))]})
+    p["sitelinks"] = {"enwiki": {"title": "Test Mullerling (footballer)"}}
+    p["aliases"] = {"en": [{"value": "Test Müllerling"}]}
+    families = {"Q990000200": {"id": "Q990000200", "labels": {"en": {"value": "Mullerling"}}}}
+    ex = Extraction()
+    add_aliases(ex, "Q1", p, SCOPE, family_names=families)
+    kinds = {a.alias_norm: a.kind for a in ex.aliases.values()}
+    # "test mullerling" is the label's norm too: the label keeps it; the alt label is the same text, too
+    assert kinds["test mullerling"] == "label" and kinds["mullerling"] == "family_name"
+    # a title unlike the label gets its own alias
+    q = person("Q2", labels={"en": {"value": "Ailtón Gonçalves da Silva"}})
+    q["sitelinks"] = {"enwiki": {"title": "Ailton (footballer, born 1973)"}}
+    add_aliases(ex, "Q2", q, SCOPE)
+    assert (ex.aliases[("Q2", "ailton")].kind, ex.aliases[("Q2", "ailton")].alias) == ("enwiki_title", "Ailton")
+    # an item that only lends its names to another entity (a squad) does not add its title
+    add_aliases(ex, "Q3", q, SCOPE, own_title=False)
+    assert ("Q3", "ailton") not in ex.aliases
+
+
+@pytest.mark.db
+def test_the_database_accepts_the_enwiki_title_alias_kind(conn):
+    from tests.db_world import World
+    w = World(conn)
+    person_ = w.person("Placeholder Person")
+    conn.execute("insert into entity_aliases (entity_id, alias, alias_norm, kind, lang) values"
+                 " (%s, 'Placeholder', 'placeholder', 'enwiki_title', 'en')", (person_["id"],))
+    conn.execute("update entities set display_name = 'Shown', demonym = 'Testish' where id = %s", (person_["id"],))
+    with pytest.raises(Exception, match="entity_aliases_kind_check"), conn.transaction():
+        conn.execute("insert into entity_aliases (entity_id, alias, alias_norm, kind) values (%s, 'X', 'x', 'bogus')",
+                     (person_["id"],))

@@ -63,7 +63,7 @@ class Data:
         for p in self.prompts:
             p["answers"] = []
         for r in _q(cur,
-                    "select a.prompt_id, a.entity_id, e.canonical_name, a.flags, a.evidence_fact_ids,"
+                    "select a.prompt_id, a.entity_id, coalesce(e.display_name, e.canonical_name), a.flags, a.evidence_fact_ids,"
                     " a.views_de, a.views_en, a.tie_amount, a.seasons_since, a.predicted_share, a.tier,"
                     " a.model_tier, a.points"
                     " from prompt_answers a join entities e on e.id = a.entity_id"

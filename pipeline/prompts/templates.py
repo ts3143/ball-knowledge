@@ -17,12 +17,15 @@ SQL_DIR = Path(__file__).parent / "sql"
 class Template:
     id: str
     answer_type: str  # 'person' | 'club'
-    # Filled from the params (QID params as entity names), plus {start_year} and {competition}.
+    # Filled from the params (QID params as display names), plus {start_year} and {competition} (the name in
+    # tunables [competitions.*], else the entity's display name).
     wording: str
-    # Params that hold entity QIDs; their names fill the wording.
+    # Params that hold entity QIDs; their display names fill the wording. A country param also gives {demonym}.
     qid_params: tuple[str, ...]
     # Subset of qid_params that are clubs: they become the prompt's club_ids tag.
     club_params: tuple[str, ...]
+    # Used instead of `wording` when the country has no English demonym: "Name a player from {country} ...".
+    wording_without_demonym: str | None = None
 
     @property
     def params_sql(self) -> str:
@@ -41,7 +44,8 @@ TEMPLATES: dict[str, Template] = {t.id: t for t in [
     ),
     Template(
         id="club_nationality", answer_type="person",
-        wording="Name a player with {country} citizenship who played for {club} since {start_year}",
+        wording="Name {a_demonym} player who played for {club} since {start_year}",
+        wording_without_demonym="Name a player from {country} who played for {club} since {start_year}",
         qid_params=("country", "club"), club_params=("club",),
     ),
     Template(
@@ -51,7 +55,8 @@ TEMPLATES: dict[str, Template] = {t.id: t for t in [
     ),
     Template(
         id="bundesliga_nationality", answer_type="person",
-        wording="Name a player with {country} citizenship who played in the {competition} since {start_year}",
+        wording="Name {a_demonym} player who played in the {competition} since {start_year}",
+        wording_without_demonym="Name a player from {country} who played in the {competition} since {start_year}",
         qid_params=("country",), club_params=(),
     ),
     Template(

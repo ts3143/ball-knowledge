@@ -81,7 +81,8 @@ def generate(conn: psycopg.Connection, competition_qid: str, tunables: dict,
     stored = [TEMPLATES[t] for t in (template_ids or TEMPLATES)]
     with conn.transaction(force_rollback=dry_run), conn.cursor(row_factory=dict_row) as cur:
         exact_floats(cur)  # stored floats are compared with the new ones
-        cur.execute("select id, canonical_name from entities where wikidata_id = %s and type = 'competition'",
+        cur.execute("select id, coalesce(display_name, canonical_name) as canonical_name from entities"
+                    " where wikidata_id = %s and type = 'competition'",
                     (competition_qid,))
         comp = cur.fetchone()
         if comp is None:
@@ -93,7 +94,7 @@ def generate(conn: psycopg.Connection, competition_qid: str, tunables: dict,
                "teams_per_season": tunables["ingest"]["coverage"]["teams_per_season"],
                "current_from_year": current_from_year(cur, comp["id"], competition_qid, tunables),
                "excluded_countries": list(tunables["prompts"].get("excluded_countries", []))}
-        wording_ctx = {"start_year": tunables["ingest"]["start_year"], "competition": comp["canonical_name"]}
+        wording_ctx = {"start_year": tunables["ingest"]["start_year"], "competition": _competition_name(tunables, competition_qid, comp["canonical_name"])}
         quality_gates = tunables["quality_gates"]
 
         # All templates are always evaluated; --template only limits what is stored.
@@ -108,19 +109,42 @@ def generate(conn: psycopg.Connection, competition_qid: str, tunables: dict,
         return {t.id: _store(cur, t, comp["id"], by_template[t.id], facts_as_of, quality_gates) for t in stored}
 
 
+def indefinite_article(word: str) -> str:
+    """"an" before a vowel sound (Argentinian, Austrian, Italian), else "a". A leading u is pronounced "yoo" in
+    every demonym (Ugandan, Ukrainian, Uruguayan), so it takes "a"."""
+    return "an" if word[:1].lower() in "aeio" else "a"
+
+
+def _competition_name(tunables: dict, qid: str, fallback: str) -> str:
+    """The name players see: [competitions.*].name of the competition with this QID, else the entity's name."""
+    for c in tunables.get("competitions", {}).values():
+        if c["qid"] == qid:
+            return c["name"]
+    return fallback
+
+
 def _generate_template(conn, cur, template: Template, ctx: dict, wording_ctx: dict) -> list[Generated]:
     renderer = psycopg.ClientCursor(conn)
     cur.execute(renderer.mogrify(template.params_sql, ctx))
     param_sets = cur.fetchall()
 
     qids = {p[k] for p in param_sets for k in template.qid_params}
-    cur.execute("select wikidata_id, id, canonical_name from entities where wikidata_id = any(%s)", (list(qids),))
+    cur.execute("select wikidata_id, id, coalesce(display_name, canonical_name) as canonical_name, demonym"
+                " from entities where wikidata_id = any(%s)", (list(qids),))
     entities = {r["wikidata_id"]: r for r in cur.fetchall()}
 
     out = []
     for params in param_sets:
         names = {k: entities[params[k]]["canonical_name"] for k in template.qid_params}
-        text = template.wording.format(**{**params, **names, **wording_ctx})
+        wording = template.wording
+        if "country" in names:
+            demonym = entities[params["country"]]["demonym"]
+            if demonym:
+                names["demonym"] = demonym
+                names["a_demonym"] = f"{indefinite_article(demonym)} {demonym}"
+            elif template.wording_without_demonym:
+                wording = template.wording_without_demonym
+        text = wording.format(**{**params, **names, **wording_ctx})
         # Rendered with literals, so the stored query reproduces the answer set on its own.
         answer_query = renderer.mogrify(template.answers_sql, {**ctx, **params})
         cur.execute(answer_query)
@@ -256,7 +280,8 @@ def _insert_answers(cur, prompt_id: int, answers: dict[int, tuple]) -> None:
 
 def _approved_diff(cur, row: dict, before: dict, g: Generated) -> ApprovedDiff:
     added, removed = g.answers.keys() - before.keys(), before.keys() - g.answers.keys()
-    cur.execute("select id, canonical_name from entities where id = any(%s)", (list(added | removed),))
+    cur.execute("select id, coalesce(display_name, canonical_name) as canonical_name from entities"
+                " where id = any(%s)", (list(added | removed),))
     names = {r["id"]: r["canonical_name"] for r in cur.fetchall()}
     return ApprovedDiff(row["id"], row["text"], sorted(names[i] for i in added), sorted(names[i] for i in removed))
 

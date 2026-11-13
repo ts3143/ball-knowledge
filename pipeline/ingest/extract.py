@@ -31,6 +31,7 @@ P_APPS = "P1350"
 P_GOALS = "P1351"
 P_SHORT_NAME = "P1813"
 P_NICKNAME = "P1449"
+P_DEMONYM = "P1549"           # on a country item, monolingual text
 Q_HUMAN = "Q5"
 Q_FEMALE = "Q6581072"
 Q_SQUAD = "Q103229495"        # "men's association football team" (season squad items)
@@ -73,6 +74,8 @@ class EntityRow:
     description: str | None
     dewiki_title: str | None
     enwiki_title: str | None
+    display_name: str | None = None  # the English Wikipedia title without "(...)", else canonical_name
+    demonym: str | None = None  # countries: English demonym (Wikidata P1549), see pick_demonym
 
 
 @dataclass
@@ -256,6 +259,41 @@ def label(entity: dict, languages: tuple[str, ...]) -> str | None:
         if lang in labels:
             return labels[lang]["value"]
     return None
+
+
+_PARENTHETICAL = re.compile(r"\s*\([^()]*\)\s*$")
+
+
+def strip_disambiguation(title: str | None) -> str | None:
+    """An English Wikipedia title without its trailing parenthetical: "Aílton (footballer, born 1973)" ->
+    "Aílton", "Takuma Asano" unchanged. None when there is nothing left (or no title)."""
+    if not title:
+        return None
+    return _PARENTHETICAL.sub("", title).strip() or None
+
+
+def display_name(enwiki_title: str | None, canonical_name: str) -> str:
+    """How a human is shown the entity: the stripped English Wikipedia title, else the Wikidata label."""
+    return strip_disambiguation(enwiki_title) or canonical_name
+
+
+def pick_demonym(entity: dict) -> str | None:
+    """The English demonym of a country item (P1549, monolingual text), deterministically: non-deprecated
+    statements in English ("en" first, then other en-* variants), preferred rank before normal rank, then the
+    first in statement order (Wikidata keeps that order stable). None when there is no English value."""
+    best = None
+    for st in statements(entity, P_DEMONYM):
+        snak = st["mainsnak"]
+        if snak.get("snaktype") != "value" or snak["datavalue"]["type"] != "monolingualtext":
+            continue
+        v = snak["datavalue"]["value"]
+        lang = v["language"]
+        if lang != "en" and not lang.startswith("en-"):
+            continue
+        key = (st.get("rank") != "preferred", lang != "en")
+        if best is None or key < best[0]:
+            best = (key, v["text"].strip())
+    return best[1] if best and best[1] else None
 
 
 def description(entity: dict) -> str | None:
@@ -840,18 +878,23 @@ def add_entity(out: Extraction, entity: dict, etype: str, scope: Scope) -> None:
         others = sorted(entity.get("labels", {}).items())
         name = others[0][1]["value"] if others else qid
         out.stats["no_label"].append((qid, others[0][0] if others else None, name))
-    out.entities[qid] = EntityRow(qid, etype, name, description(entity),
-                                  sitelink(entity, "dewiki"), sitelink(entity, "enwiki"))
+    en_title = sitelink(entity, "enwiki")
+    out.entities[qid] = EntityRow(qid, etype, name, description(entity), sitelink(entity, "dewiki"), en_title,
+                                  display_name(en_title, name),
+                                  pick_demonym(entity) if etype == "country" else None)
 
 
 def add_aliases(out: Extraction, owner: str, entity: dict, scope: Scope,
-                family_names: dict[str, dict] | None = None) -> None:
-    """Labels, family names, alt labels, short names and nicknames, in that priority order
-    (a name found twice keeps the first kind)."""
+                family_names: dict[str, dict] | None = None, own_title: bool = True) -> None:
+    """Labels, the English Wikipedia title (without its parenthetical), family names, alt labels, short names
+    and nicknames, in that priority order (a name found twice keeps the first kind). own_title is False for an
+    item that only contributes names to another entity (a club's squad item)."""
     found: list[tuple[str, str, str | None]] = []
     for lang in scope.languages:
         if lang in entity.get("labels", {}):
             found.append((entity["labels"][lang]["value"], "label", lang))
+    if own_title and (title := strip_disambiguation(sitelink(entity, "enwiki"))):
+        found.append((title, "enwiki_title", "en"))
     if family_names is not None:
         for fam in item_values(entity, P_FAMILY_NAME):
             fam_entity = family_names.get(fam)

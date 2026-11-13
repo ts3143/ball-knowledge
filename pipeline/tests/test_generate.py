@@ -119,8 +119,7 @@ def test_club_nationality_joins_citizenship_and_club(world):
     assert set(answers) == {citizen["id"], weak_citizen["id"]}
     assert nat in answers[citizen["id"]]["evidence_fact_ids"]
     assert answers[citizen["id"]]["flags"] == []
-    assert prompt["text"] == ("Name a player with Test Country citizenship who played for Test Club A"
-                              " since 2000")
+    assert prompt["text"] == "Name a player from Test Country who played for Test Club A since 2000"  # no demonym
     assert prompt["club_ids"] == [w.clubs["A"]["id"]]
     # Club B has a citizen too, and the other country's only citizen is a club A player.
     assert len(w.prompts("club_nationality")) == 3
@@ -189,8 +188,7 @@ def test_bundesliga_nationality_skips_undated_and_flags_edge_and_weak(world):
     assert answers[undated_too["id"]]["flags"] == ["edge_season"]
     assert answers[weak["id"]]["flags"] == ["weak_stint"]
     assert nat[strong["id"]] in answers[strong["id"]]["evidence_fact_ids"]
-    assert prompt["text"] == ("Name a player with Test Country citizenship who played in the Test League"
-                              " since 2000")
+    assert prompt["text"] == "Name a player from Test Country who played in the Test League since 2000"
     assert prompt["club_ids"] == []
     # Countries enumerated only with a dated-season answer: not the undated-only one.
     assert len(w.prompts("bundesliga_nationality")) == 2
@@ -605,3 +603,59 @@ def test_rejected_prompt_survives_when_no_longer_produced(world):
     stats = w.run("club_pair")["club_pair"]
     assert (stats.deleted, stats.rejected_gone) == (0, 1)
     assert len(w.prompts("club_pair")) == 1
+
+
+def _one_country_world(w):
+    p = w.person("P1")
+    w.stint(p, "A")
+    w.fact(p["id"], "nationality", w.country["id"])
+    return p
+
+
+def test_wording_uses_the_demonym_and_display_names(world):
+    w = world
+    _one_country_world(w)
+    w.cur.execute("update entities set demonym = 'Testish' where id = %s", (w.country["id"],))
+    w.cur.execute("update entities set display_name = 'Club Alpha' where id = %s", (w.clubs["A"]["id"],))
+    w.run("club_nationality", "bundesliga_nationality")
+    assert [p["text"] for p in w.prompts("club_nationality")] == ["Name a Testish player who played for Club Alpha since 2000"]
+    assert [p["text"] for p in w.prompts("bundesliga_nationality")] == [
+        "Name a Testish player who played in the Test League since 2000"]
+
+
+def test_wording_without_a_demonym_names_the_country_by_its_display_name(world):
+    w = world
+    _one_country_world(w)
+    w.cur.execute("update entities set display_name = 'Testland' where id = %s", (w.country["id"],))
+    w.run("club_nationality")
+    assert [p["text"] for p in w.prompts("club_nationality")] == [
+        "Name a player from Testland who played for Test Club A since 2000"]  # never "with X citizenship"
+
+
+def test_the_competition_name_comes_from_the_tunables(world):
+    w = world
+    _one_country_world(w)
+    comps = {"testliga": {"qid": w.comp["wikidata_id"], "name": "Testliga", "sport": "football"}}
+    w.cur.execute("update entities set display_name = 'Test League (display)' where id = %s", (w.comp["id"],))
+    w.run("bundesliga_nationality", competitions=comps)
+    assert w.prompts("bundesliga_nationality")[0]["text"].endswith("played in the Testliga since 2000")
+    # another competition's entry is ignored; without an entry the entity's display name is used
+    other = {"x": {"qid": "Q1", "name": "Other", "sport": "football"}}
+    w.run("bundesliga_nationality", competitions=other)
+    assert w.prompts("bundesliga_nationality")[0]["text"].endswith("played in the Test League (display) since 2000")
+
+
+@pytest.mark.parametrize("demonym, article", [("Argentinian", "an"), ("Austrian", "an"), ("Egyptian", "an"),
+                                             ("Irish", "an"), ("Ugandan", "a"), ("Dutch", "a"), ("Ukrainian", "a")])
+def test_indefinite_article_for_demonyms(demonym, article):
+    from prompts.generate import indefinite_article
+    assert indefinite_article(demonym) == article
+
+
+def test_wording_says_an_before_a_vowel_demonym(world):
+    w = world
+    _one_country_world(w)
+    w.cur.execute("update entities set demonym = 'Argentinian' where id = %s", (w.country["id"],))
+    w.run("bundesliga_nationality")
+    assert w.prompts("bundesliga_nationality")[0]["text"] == (
+        "Name an Argentinian player who played in the Test League since 2000")

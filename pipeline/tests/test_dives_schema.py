@@ -341,7 +341,8 @@ def test_bk_app_can_write_only_what_it_should(conn, play):
             conn.execute(sql, params)
 
 
-def test_bk_app_is_a_plain_role_that_cannot_log_in_by_default(conn):
-    row = conn.execute("select rolcanlogin, rolsuper, rolbypassrls, rolcreatedb, rolcreaterole"
+def test_bk_app_is_a_plain_role(conn):
+    # LOGIN is granted outside the migration (`npm run db:app-role` sets the password), so it is not checked here.
+    row = conn.execute("select rolsuper, rolbypassrls, rolcreatedb, rolcreaterole"
                        " from pg_roles where rolname = 'bk_app'").fetchone()
-    assert row == (False, False, False, False, False)
+    assert row == (False, False, False, False)

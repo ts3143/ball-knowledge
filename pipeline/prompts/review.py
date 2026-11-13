@@ -101,11 +101,12 @@ def load_prompt(cur, prompt_id: int, seeds: dict[int, float], bands: dict[int, s
     p = cur.fetchone()
     if p is None:
         raise ReviewError(f"prompt {prompt_id} does not exist")
-    cur.execute("select id, canonical_name from entities where id = any(%s)", (p["club_ids"],))
+    cur.execute("select id, coalesce(display_name, canonical_name) as canonical_name from entities"
+                " where id = any(%s)", (p["club_ids"],))
     names = {r["id"]: r["canonical_name"] for r in cur.fetchall()}
-    cur.execute("select e.canonical_name as name, a.predicted_share as share, a.tier, a.points, a.flags"
+    cur.execute("select coalesce(e.display_name, e.canonical_name) as name, a.predicted_share as share, a.tier, a.points, a.flags"
                 " from prompt_answers a join entities e on e.id = a.entity_id where a.prompt_id = %s"
-                " order by a.predicted_share desc nulls last, e.canonical_name", (prompt_id,))
+                " order by a.predicted_share desc nulls last, name", (prompt_id,))
     tiers = p["gate_results"].get("tiers")
     return ReviewPrompt(
         id=p["id"], template=p["template"], text=p["text"], status=p["status"],

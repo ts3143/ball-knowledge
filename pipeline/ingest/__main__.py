@@ -23,6 +23,7 @@ from .dewiki import DewikiApi, Page, coach_stations, player_rows
 from .dryrun import dry_run
 from .extract import (
     P_COACH_OF,
+    P_DEMONYM,
     P_FAMILY_NAME,
     P_HEAD_COACH,
     P_MEMBER_OF_TEAM,
@@ -213,6 +214,13 @@ def ingest(settings, skip_pageviews: bool) -> Extraction:
     attr_targets = {f.object for f in ex.facts.values() if f.predicate in ("nationality", "position")}
     family_ids = {fam for pid in in_scope for fam in item_values(persons[pid], P_FAMILY_NAME)}
     refs = api.fetch(sorted(attr_targets | family_ids), "refs", with_claims=False)
+    # Countries need their claims for the demonym (P1549); the other refs do not.
+    country_ids = sorted({f.object for f in ex.facts.values() if f.predicate == "nationality"
+                          and f.object in refs})
+    countries = api.fetch(country_ids, "countries", batch=10)
+    for q in country_ids:
+        if q in countries:
+            refs[q]["claims"] = {P_DEMONYM: countries[q].get("claims", {}).get(P_DEMONYM, [])}
     for ref, f in list(ex.facts.items()):
         if f.predicate in ("nationality", "position"):
             if f.object not in refs:
@@ -232,7 +240,7 @@ def ingest(settings, skip_pageviews: bool) -> Extraction:
         add_entity(ex, clubs[club], "club", scope)
         add_aliases(ex, club, clubs[club], scope)
         for squad in squads_by_club[club]:
-            add_aliases(ex, club, clubs[squad], scope)
+            add_aliases(ex, club, clubs[squad], scope, own_title=False)
     add_entity(ex, competition, "competition", scope)
     add_aliases(ex, competition_id, competition, scope)
     for pid in sorted(in_scope):
