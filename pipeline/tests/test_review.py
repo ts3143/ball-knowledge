@@ -10,6 +10,7 @@ import pytest
 from ingest.config import REPO_ROOT
 from prompts.difficulty import tercile_bands
 from prompts.review import (
+    MENU,
     Decision,
     ReviewError,
     decide,
@@ -201,7 +202,7 @@ def test_empty_answers_to_a_follow_up_go_back_to_the_menu_and_bad_input_asks_aga
     add_answers(w, pid)
     counts, out = run_loop(conn, w, "x", "r", "", "e", "", "R", "needs a note", "")
     assert status_of(w, pid)["status"] == "rejected"  # "R" (any case) after two cancelled follow-ups
-    assert counts["rejected"] == 1 and "Please answer a, r, e, s or q." in out
+    assert counts["rejected"] == 1 and "Please answer a, r, e, l, s or q." in out
 
 
 def test_the_end_of_input_quits_cleanly_and_each_decision_was_already_saved(conn, world):
@@ -227,3 +228,21 @@ def test_limit_and_template_narrow_the_loop(conn, world):
     assert counts["skipped"] == 2 and "2 prompts to review" in out
     counts, out = run_loop(conn, w, "s", "s", "s", template_ids=["t_b"])
     assert counts["skipped"] == 2 and "2 prompts to review" in out
+
+
+def test_the_list_key_shows_every_answer_changes_nothing_and_stays_on_the_prompt(conn, world):
+    w = world
+    pid = add_prompt(w, 1, status="gate_passed", text="Name a player of Placeholder FC")
+    add_answers(w, pid, count=14, weak=2)
+    other = add_prompt(w, 2, status="gate_passed")
+    add_answers(w, other)
+    before = status_of(w, pid)
+    counts, out = run_loop(conn, w, "l", "L", "q")
+    assert counts == {"approved": 0, "rejected": 0, "edited": 0, "skipped": 0, "unseen": 2}
+    assert status_of(w, pid) == before
+    assert out.count("all 14 answers of prompt") == 2 and out.count("[1 of 2]") == 1  # listed twice, never moved on
+    listing = out.split("all 14 answers of prompt")[1]
+    ranks = [ln.split(".")[0].strip() for ln in listing.splitlines() if ". " in ln and ln.startswith("  ")]
+    assert ranks[:14] == [str(i) for i in range(1, 15)]
+    assert listing.count("weak") >= 2 and "Placeholder Person" in listing and "100 pts" in listing
+    assert "[l]ist all answers" in MENU

@@ -151,6 +151,13 @@ def render(p: ReviewPrompt, position: int, total: int, tier_names: list[str]) ->
     return "\n".join(lines)
 
 
+def render_all_answers(p: ReviewPrompt, tier_names: list[str]) -> str:
+    """Every answer of the prompt, most likely first: rank, name, tier, points, predicted share, weak flag."""
+    lines = [f"all {len(p.answers)} answers of prompt {p.id}, by predicted share"]
+    lines += [_answer_line(i, a, tier_names) for i, a in enumerate(p.answers, 1)]
+    return "\n".join(lines)
+
+
 # ---------------------------------------------------------------------------
 # Decisions (each one is committed at once)
 # ---------------------------------------------------------------------------
@@ -196,7 +203,7 @@ def decide_many(conn: psycopg.Connection, ids: list[int], status: str, note: str
 # The interactive loop
 # ---------------------------------------------------------------------------
 
-MENU = "[a]pprove  [r]eject  [e]dit text + approve  [s]kip  [q]uit > "
+MENU = "[a]pprove  [r]eject  [e]dit text + approve  [l]ist all answers  [s]kip  [q]uit > "
 
 
 def review_loop(conn: psycopg.Connection, tunables: dict, competition: int,
@@ -257,10 +264,14 @@ def review_loop(conn: psycopg.Connection, tunables: dict, competition: int,
                     decide(conn, [Decision(pid, APPROVED, text=text)])
                     counts["approved"] += 1
                     counts["edited"] += 1
+                elif choice in ("l", "list"):
+                    say(render_all_answers(prompt, tier_names))
+                    say()
+                    continue  # nothing changes; ask again about the same prompt
                 elif choice in ("s", "skip"):
                     counts["skipped"] += 1
                 else:
-                    say("Please answer a, r, e, s or q.")
+                    say("Please answer a, r, e, l, s or q.")
                     continue
             except ReviewError as e:
                 say(f"Not saved: {e}")

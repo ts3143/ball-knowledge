@@ -10,6 +10,7 @@ from datetime import UTC, date, datetime, timedelta
 
 import psycopg
 from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
 
 from prompts.difficulty import seed_difficulty
 
@@ -173,3 +174,65 @@ def unschedule(conn: psycopg.Connection, comp: Competition, day: date, now: date
             raise DiveError(f"the {day} dive opened at {dive['opens_at']:%Y-%m-%d %H:%M %Z} and cannot be removed")
         cur.execute("delete from dives where id = %s", (dive["id"],))
         return dive["prompts"]
+
+
+@dataclass
+class PurgeResult:
+    dive_dates: list[date]
+    counts: dict[str, int]
+
+
+def _can_purge(cur) -> bool:
+    cur.execute("select current_setting('is_superuser') = 'on' or current_user = 'postgres' as ok")
+    return cur.fetchone()["ok"]
+
+
+def purge_test(conn: psycopg.Connection, comp: Competition, dates: list[date] | None = None,
+               dry_run: bool = False) -> PurgeResult:
+    """TEST MODE, local database only. Removes test dives (all of them when `dates` is None) with everything
+    that hangs off them, in foreign-key order, so their prompts return to the pool (still approved, no longer
+    frozen). Real dives are refused. The database lets answers be deleted only for test dives, from the pipeline's
+    role, while the flag set here is on. One transaction; a test_purges row is the audit record. With `dry_run`
+    everything is rolled back and the counts say what would go."""
+    with conn.transaction(force_rollback=dry_run), conn.cursor(row_factory=dict_row) as cur:
+        if not _can_purge(cur):
+            raise DiveError("purge-test needs the pipeline's database role (postgres); local test mode only")
+        cur.execute("select id, dive_date, is_test from dives where competition_id = %s"
+                    " and (dive_date = any(%s) or (%s::date[] is null and is_test)) order by dive_date",
+                    (comp.id, dates, dates))
+        found = cur.fetchall()
+        real = [r["dive_date"] for r in found if not r["is_test"]]
+        if real:
+            raise DiveError(f"not test dives, never purged: {', '.join(map(str, real))}")
+        missing = sorted(set(dates or []) - {r["dive_date"] for r in found})
+        if missing:
+            raise DiveError(f"no {comp.slug} test dive on {', '.join(map(str, missing))}")
+        if not found:
+            raise DiveError(f"no {comp.slug} test dives to purge")
+        ids = [r["id"] for r in found]
+        cur.execute("set local bk.purge_test_dives = 'on'")
+
+        def run(sql: str, *params) -> int:
+            cur.execute(sql, params)
+            return cur.rowcount
+
+        prompts = "select prompt_id from dive_prompts where dive_id = any(%s)"
+        attempts = "select id from attempts where dive_id = any(%s)"
+        cur.execute("select distinct user_id from attempts where dive_id = any(%s)", (ids,))
+        users = [r["user_id"] for r in cur.fetchall()]
+        counts = {"dives": len(ids)}
+        counts["prompts_released"] = run("select 1 from dive_prompts where dive_id = any(%s)", ids)
+        counts["attempts"] = run("select 1 from attempts where dive_id = any(%s)", ids)
+        counts["review_queue"] = run(f"delete from review_queue where prompt_id in ({prompts})", ids)
+        corrections = run(f"delete from answers where origin = 'review' and attempt_id in ({attempts})", ids)
+        plays = run(f"delete from answers where attempt_id in ({attempts})", ids)
+        counts["answers"] = corrections + plays
+        counts["rating_history"] = run(f"select 1 from rating_history where attempt_id in ({attempts})", ids)
+        run("delete from attempts where dive_id = any(%s)", ids)
+        counts["prompt_ratings"] = run(f"delete from prompt_ratings where prompt_id in ({prompts})", ids)
+        run("delete from dives where id = any(%s)", ids)
+        counts["users"] = len(users)
+        counts["ratings"] = run("delete from ratings where user_id = any(%s)", users)
+        cur.execute("insert into test_purges (dive_dates, counts) values (%s, %s)",
+                    ([r["dive_date"] for r in found], Jsonb(counts)))
+        return PurgeResult([r["dive_date"] for r in found], counts)

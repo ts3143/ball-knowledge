@@ -99,7 +99,7 @@ def print_status(cur, comp: Competition, tunables: dict, rules: DiveRules, now: 
     else:
         out("  none")
     out("")
-    out(f"test dives ({len(test)}; local database only, virtual dates, they use up approved prompts)")
+    out(f"test dives ({len(test)}; local database only, virtual dates; `purge-test` frees their prompts)")
     if test:
         out("  virtual date state    prompts  attempts  opens                      closes")
         for d in test[-10:]:
@@ -109,6 +109,13 @@ def print_status(cur, comp: Competition, tunables: dict, rules: DiveRules, now: 
             out(f"  ... {len(test) - 10} older test dives not shown")
     else:
         out("  none")
+    cur.execute("select purged_at, dive_dates, counts from test_purges order by id desc limit 1")
+    last = cur.fetchone()
+    if last:
+        out(f"last test purge: {last['purged_at']:%Y-%m-%d %H:%M} (any competition), "
+            f"{len(last['dive_dates'])} dive(s), {last['counts'].get('answers', 0)} answers deleted")
+    else:
+        out("last test purge: never")
 
 
 def print_review_queue(cur, limit: int, out=print) -> None:
@@ -137,3 +144,16 @@ def print_review_queue(cur, limit: int, out=print) -> None:
         out(f"  {_clip(r['text'], WIDTH - 4)}")
         out(f"  typed: {_clip(repr(r['sample_raw']), 60)}   normalized: {_clip(r['input_norm'], 40)}")
         out(f"  could be: {cand or '-'}")
+
+
+def print_purge(result, comp: Competition, dry_run: bool, out=print) -> None:
+    """What a purge deletes (or, for a dry run or the confirmation step, would delete)."""
+    c = result.counts
+    out("=" * WIDTH)
+    out(f"{comp.name}: purge of {c['dives']} test dive(s)" + ("  (what would go; nothing deleted yet)" if dry_run else ""))
+    out("  virtual dates: " + ", ".join(map(str, result.dive_dates)))
+    out(f"  attempts {c['attempts']}   answers {c['answers']}   review queue rows {c['review_queue']}   "
+        f"rating history rows {c['rating_history']}")
+    out(f"  prompt ratings {c['prompt_ratings']}   players involved {c['users']} "
+        f"(their ratings cache rows deleted: {c['ratings']})")
+    out(f"  prompts returned to the pool: {c['prompts_released']} (still approved, no longer frozen)")
