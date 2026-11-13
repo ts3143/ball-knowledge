@@ -319,6 +319,8 @@ def test_purge_by_date_leaves_other_test_dives_and_real_dives_alone(conn, setup)
 
 def test_a_real_date_or_a_missing_date_is_refused_and_nothing_is_deleted(conn, setup):
     w, tunables, rules, comp = setup
+    attempts_before = count(w, "select count(*) as n from attempts")
+    purges_before = count(w, "select count(*) as n from test_purges")
     fill_pool(w, 7)
     test, _ = played_test_dive(conn, w, tunables, rules, comp)
     fill_pool(w, 14, first=100)
@@ -330,8 +332,8 @@ def test_a_real_date_or_a_missing_date_is_refused_and_nothing_is_deleted(conn, s
     with pytest.raises(DiveError, match="no testliga test dive on 1900-02-01"):
         purge_test(conn, comp, [date(1900, 2, 1)])
     assert len(dives(w)) == 2 and len(dives(w, is_test=True)) == 1
-    assert count(w, "select count(*) as n from attempts") == 2
-    assert count(w, "select count(*) as n from test_purges") == 0
+    assert count(w, "select count(*) as n from attempts") == attempts_before + 2
+    assert count(w, "select count(*) as n from test_purges") == purges_before
 
 
 def test_nothing_to_purge(conn, setup):
@@ -342,14 +344,16 @@ def test_nothing_to_purge(conn, setup):
 
 def test_a_dry_run_changes_nothing_but_reports_the_counts(conn, setup):
     w, tunables, rules, comp = setup
+    # Compare with the counts before the test: the local database may hold rows from real play and earlier purges.
+    before = {t: count(w, f"select count(*) as n from {t}") for t in ("answers", "review_queue", "test_purges")}
     fill_pool(w, 7)
     played_test_dive(conn, w, tunables, rules, comp)
     result = purge_test(conn, comp, None, dry_run=True)
     assert result.counts["answers"] == 8 and result.counts["attempts"] == 1
     assert len(dives(w, is_test=True)) == 1
-    assert count(w, "select count(*) as n from answers") == 8
-    assert count(w, "select count(*) as n from review_queue") == 1
-    assert count(w, "select count(*) as n from test_purges") == 0
+    assert count(w, "select count(*) as n from answers") == before["answers"] + 8
+    assert count(w, "select count(*) as n from review_queue") == before["review_queue"] + 1
+    assert count(w, "select count(*) as n from test_purges") == before["test_purges"]
 
 
 def test_the_delete_exception_is_narrow_even_with_the_flag_on(conn, setup):

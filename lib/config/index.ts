@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { parse } from "smol-toml";
 import type { Params } from "@/lib/glicko2";
@@ -8,19 +8,36 @@ export type Tunables = Record<string, any>;
 
 export const TUNABLES_PATH = resolve(process.cwd(), "tunables.toml");
 
-let cached: Tunables | null = null;
+interface CacheEntry {
+  mtimeMs: number;
+  tree: Tunables;
+}
 
-/** Reads tunables.toml once per process. Call reloadTunables() in dev to pick up edits. */
+const cache = new Map<string, CacheEntry>();
+
+/**
+ * Reads tunables.toml and caches it per process. Outside production the file's mtime is checked on every call, so an
+ * edit applies on the next request without a restart (T wants to change the timer and test quickly). In production
+ * the file is read once. A file that fails validation throws; the previous good copy is not used.
+ */
 export function loadTunables(path: string = TUNABLES_PATH): Tunables {
-  if (cached && path === TUNABLES_PATH) return cached;
-  const tree = parse(readFileSync(path, "utf8")) as Tunables;
+  const hit = cache.get(path);
+  if (production()) {
+    if (hit) return hit.tree;
+  } else if (hit && statSync(/*turbopackIgnore: true*/ path).mtimeMs === hit.mtimeMs) {
+    return hit.tree;
+  }
+  const mtimeMs = statSync(/*turbopackIgnore: true*/ path).mtimeMs;
+  const tree = parse(readFileSync(/*turbopackIgnore: true*/ path, "utf8")) as Tunables;
   validateTunables(tree);
-  if (path === TUNABLES_PATH) cached = tree;
+  cache.set(path, { mtimeMs, tree });
   return tree;
 }
 
+const production = () => process.env.NODE_ENV === "production";
+
 export function reloadTunables(): Tunables {
-  cached = null;
+  cache.delete(TUNABLES_PATH);
   return loadTunables();
 }
 
